@@ -1,2 +1,2 @@
 # MedChat
-Medchat is the Data Science project about medical knowledge agent that help medical student study and solve Q&amp;A about medical knowledge with reliable data source focus only on medical data
+Medchat is a Data Science project featuring a specialized AI agent built to support medical students. The agent serves as a Q&A tool and study aid, providing answers sourced solely from verified and reliable medical data.
