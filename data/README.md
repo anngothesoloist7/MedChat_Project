@@ -1,9 +1,11 @@
 <div align="center">
 
-# Dataset description
+# Medical Dataset
 
 Our data includes collection of medical books that provides abundant content in medical education and practice. Below are short descriptions and suggested metadata for the a total of 14 medical books. For full materials, please visit our [folder](https://drive.google.com/drive/folders/1DkbN8xm33Tx9yee4bO6IrpB8bPxiPwCz?usp=sharing) 
 </div>
+
+\
 
 ## 1. Book Descriptions
 
@@ -28,8 +30,9 @@ This authoritative reference covers diseases arising from occupational exposures
 ### 1.14. Triệu Chứng Học Nội Khoa Tập 1, 2 (Symptomatology in Internal Medicine Volume 1 and 2)
 A Vietnamese textbook on symptomatology in internal medicine, edited by Prof. Ngo Quy Chau and colleagues. It focuses on approaching patients, disease prevention, infection control, and detailed symptoms in areas like cardiology, respiratory, and gastroenterology. Designed for medical students and practitioners, it combines classic knowledge with practical clinical approaches from Hanoi Medical University.
 
+\
 
-## 2. Suggested metadata
+## 2. Suggested Metadata
 
 This metadata can be used for database integration, indexing in a retrieval system, or cataloging within MedChat.
 
