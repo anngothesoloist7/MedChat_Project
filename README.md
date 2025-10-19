@@ -4,12 +4,12 @@ An RAG-based AI Agent for Intelligent Medical Information Retrieval, designed to
 
 ## Table of Contents
 
-  - [Overview]()
-  - [The Problem]()
-  - [Our Solution: MedChat]()
-  - [Key Features]()
-  - [Knowledge Base: Data Sources]()
-  - [Project Execution]()
+  - Overview
+  - The Problem
+  - Our Solution: MedChat
+  - Key Features
+  - Knowledge Base: Data Sources
+  - Project Execution
 
 ## Overview
 
