@@ -46,6 +46,15 @@ Our knowledge base is built upon a curated collection of raw medical textbooks, 
 5.  **Clinical Epidemiology: The Essentials (5th ed.)** - *Lippincott Williams & Wilkins*
 6.  **CURRENT Medical Diagnosis and Treatment 2025 (64th ed.)** - *McGraw Hill Medical*
 7.  **Goodman & Gilman’s The Pharmacological Basis of Therapeutics (14th ed.)**
+8.  **Grainger & Allison’s Diagnostic Radiology: A Textbook of Medical Imaging** - *Andreas Adam, Adrian K. Dixon, Jonathan H. Gillard, Cornelia M. Schaefer-Prokop*
+9.  **Pathophysiology of Disease: An Introduction to Clinical Medicine** - *Gary D. Hammer, Stephen J. McPhee*
+10.  **Bates’ Guide to Physical Examination and History Taking** - *Lynn S. Bickley, Peter G. Szilagyi, Richard M. Hoffman, Rainier P. Soriano*
+11.  **Bài Giảng Nhi Khoa Tập 1 và 2 (Pediatrics Lecture Volume 1 and 2)** - *Hanoi Medical University Faculty (Department of Pediatrics); PGS. TS Nguyễn Thị Diệu Thúy (Chief Editor)*
+12.  **The ECG Made Easy** - *John Hampton, Joanna Hampton, David Adlam*
+13.  **Hunter’s Diseases of Occupations** - *Peter J. Baxter, Tar-Ching Aw, Anne Cockcroft, Paul Durrington, Malcolm Harrington*
+14.  **Triệu Chứng Học Nội Khoa Tập 1 (Symptomatology in Internal Medicine Volume 1)** - *Ngô Quý Châu, Đỗ Doãn Lợi, Nguyễn Đạt Anh, Đỗ Gia Tuyển, Nguyễn Vĩnh Ngọc, Phan Thu Phương*
+
+
 
 ## Project Execution
 
