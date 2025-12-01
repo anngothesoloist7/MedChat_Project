@@ -1,0 +1,24 @@
+[project]
+name = "medchat"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "chromadb>=1.3.5",
+    "fastembed>=0.7.3",
+    "langchain>=1.1.0",
+    "langchain-chroma>=1.0.0",
+    "langchain-community>=0.4.1",
+    "langchain-core>=1.1.0",
+    "langchain-google-genai>=3.2.0",
+    "langchain-huggingface>=1.1.0",
+    "langchain-text-splitters>=1.0.0",
+    "mistralai>=1.9.11",
+    "pymupdf>=1.26.6",
+    "pypdf>=6.4.0",
+    "pypdfium2>=5.1.0",
+    "python-dotenv>=1.2.1",
+    "qdrant-client>=1.16.1",
+    "requests>=2.32.5",
+]
