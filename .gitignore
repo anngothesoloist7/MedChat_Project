@@ -8,8 +8,4 @@ wheels/
 
 # Virtual environments
 .venv
-
-# Content in Database folder
-database/raw/*
-database/splitted/*
-database/parsed/*
+.env
