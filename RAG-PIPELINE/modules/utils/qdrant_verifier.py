@@ -23,7 +23,7 @@ def setup_logger(log_dir: str):
 def verify_and_retry_indexing(
     qdrant_manager,
     json_files: list[str],
-    log_dir: str = "RAG-PIPELINE/logs"
+    log_dir: str = None
 ) -> bool:
     """
     Verify if all chunks from the provided JSON files are indexed in Qdrant.
@@ -40,6 +40,10 @@ def verify_and_retry_indexing(
     import json
     from pathlib import Path
     
+    if log_dir is None:
+        base_dir = os.getenv("BASE_DIR", os.getcwd())
+        log_dir = os.path.join(base_dir, "logs")
+
     logger = setup_logger(log_dir)
     print("\n[VERIFY] Starting verification...")
     

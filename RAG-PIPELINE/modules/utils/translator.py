@@ -5,7 +5,10 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-load_dotenv()
+# Load environment variables (prioritize .env.local)
+base_path = Path(__file__).resolve().parent.parent.parent
+env_path = base_path / ".env.local"
+load_dotenv(env_path if env_path.exists() else base_path / ".env")
 
 class Translator:
     def __init__(self):
@@ -17,7 +20,10 @@ class Translator:
         # Load model from env, default to gemini-2.0-flash-exp
         self.model = os.getenv("GEMINI_TRANSLATOR_MODEL", "gemini-2.5-flash") 
         
-        prompt_path = Path(os.getcwd()) / "prompts" / "medical_info_translation_prompt.md"
+        BASE_DIR = Path(os.getenv("BASE_DIR", os.getcwd()))
+        PIPELINE_ROOT = BASE_DIR
+        
+        prompt_path = PIPELINE_ROOT / "prompts" / "medical_info_translation_prompt.md"
         if not prompt_path.exists():
             raise FileNotFoundError(f"Translation prompt not found at {prompt_path}")
             

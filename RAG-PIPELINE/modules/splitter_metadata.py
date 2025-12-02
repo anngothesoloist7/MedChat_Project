@@ -1,6 +1,7 @@
 import os
 import shutil
 import json
+import re
 from pathlib import Path
 from typing import List, Tuple
 from pypdf import PdfReader, PdfWriter
@@ -8,7 +9,10 @@ from dotenv import load_dotenv
 from mistralai import Mistral, DocumentURLChunk
 from mistralai import Mistral, DocumentURLChunk
 
-load_dotenv()
+# Load environment variables (prioritize .env.local)
+base_path = Path(__file__).resolve().parent.parent
+env_path = base_path / ".env.local"
+load_dotenv(env_path if env_path.exists() else base_path / ".env")
 
 try:
     import pypdfium2 as pdfium
@@ -19,9 +23,15 @@ except ImportError:
 class Config:
     TARGET_CHUNK_SIZE = int(os.getenv('TARGET_CHUNK_SIZE_MB', 50)) * 1024 * 1024
     MAX_PAGES = int(os.getenv('MAX_PAGES', 500))
-    BASE_DIR = Path(os.getcwd())
-    RAW_FOLDER = BASE_DIR / "RAG-PIPELINE/database" / "raw"
-    SPLITTED_FOLDER = BASE_DIR / "RAG-PIPELINE/database" / "splitted"
+    BASE_DIR = Path(os.getenv("BASE_DIR", os.getcwd()))
+    PIPELINE_ROOT = BASE_DIR
+
+    RAW_FOLDER = PIPELINE_ROOT / "database" / "raw"
+    SPLITTED_FOLDER = PIPELINE_ROOT / "database" / "splitted"
+    
+    # Ensure directories exist
+    RAW_FOLDER.mkdir(parents=True, exist_ok=True)
+    SPLITTED_FOLDER.mkdir(parents=True, exist_ok=True)
     MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
     GOOGLE_API_KEY = os.getenv("GOOGLE_CHAT_API_KEY")
     MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-ocr-latest")
@@ -182,7 +192,20 @@ def run_splitter(input_path_str: str) -> List[str]:
         return []
 
     print(f"[INFO] Processing: {path.name}")
-    raw_path = Config.RAW_FOLDER / path.name
+    
+    # Sanitize filename to avoid path length issues
+    def sanitize_filename(name: str, max_length: int = 100) -> str:
+        # Remove invalid chars
+        name = re.sub(r'[<>:"/\\|?*]', '', name)
+        # Truncate if too long (preserve extension)
+        if len(name) > max_length:
+            stem = Path(name).stem
+            suffix = Path(name).suffix
+            name = stem[:max_length-len(suffix)] + suffix
+        return name
+
+    safe_name = sanitize_filename(path.name)
+    raw_path = Config.RAW_FOLDER / safe_name
     if path.resolve() != raw_path.resolve():
         shutil.copy2(path, raw_path)
         print(f"[INFO] Saved to raw: {raw_path}")
@@ -214,7 +237,12 @@ def run_splitter(input_path_str: str) -> List[str]:
             )
             
             if count_res.count > 0:
-                print(f"[WARN] Found {count_res.count} existing points. Deleting...")
+                print(f"[WARN] Found {count_res.count} existing points.")
+                if input(f"PDF '{path.name}' already exists in DB. Overwrite? (y/n): ").strip().lower() != 'y':
+                    print("[INFO] Skipped by user.")
+                    return []
+
+                print(f"[INFO] Deleting existing points...")
                 q_manager.qdrant_client.delete(
                     collection_name=q_manager.Config.COLLECTION_NAME,
                     points_selector=models.FilterSelector(

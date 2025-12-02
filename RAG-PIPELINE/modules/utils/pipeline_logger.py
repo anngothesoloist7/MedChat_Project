@@ -2,7 +2,14 @@ import os
 import logging
 
 class PipelineLogger:
-    def __init__(self, log_dir: str = "RAG-PIPELINE/logs"):
+    def __init__(self, log_dir: str = None):
+        if log_dir is None:
+            base_dir = os.getenv("BASE_DIR", os.getcwd())
+            # If BASE_DIR already ends with RAG-PIPELINE, don't append it again if possible, 
+            # but here we just want the logs folder inside the pipeline root.
+            # Assuming BASE_DIR points to the pipeline root as per previous fixes.
+            log_dir = os.path.join(base_dir, "logs")
+            
         self.log_dir = log_dir
         os.makedirs(log_dir, exist_ok=True)
         self.log_file = os.path.join(log_dir, "pipeline_status.log")

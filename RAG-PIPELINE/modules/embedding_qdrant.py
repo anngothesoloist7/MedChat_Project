@@ -11,11 +11,15 @@ from tqdm import tqdm
 from fastembed import SparseTextEmbedding
 
 # Load environment variables
-env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(env_path if env_path.exists() else Path(os.getcwd()) / ".env")
+# Load environment variables
+base_path = Path(__file__).resolve().parent.parent
+env_path = base_path / ".env.local"
+load_dotenv(env_path if env_path.exists() else base_path / ".env")
 
 class Config:
-    BASE_DIR = Path(os.getcwd())
+    BASE_DIR = Path(os.getenv("BASE_DIR", os.getcwd()))
+    PIPELINE_ROOT = BASE_DIR
+
     GEMINI_API_KEY = os.getenv("GOOGLE_EMBEDDING_API_KEY")
     QDRANT_URL = os.getenv("SERVICE_URL_QDRANT")
     QDRANT_API_KEY = os.getenv("SERVICE_PASSWORD_QDRANTAPIKEY")
@@ -23,8 +27,12 @@ class Config:
     DENSE_VECTOR_SIZE = int(os.getenv("DENSE_VECTOR_SIZE", 1536))
     GEMINI_BATCH_SIZE = int(os.getenv("GEMINI_BATCH_SIZE", 100))
     QDRANT_BATCH_SIZE = int(os.getenv("QDRANT_BATCH_SIZE", 100))
-    PARSED_FOLDER = BASE_DIR / "RAG-PIPELINE/database" / "parsed"
-    RAW_FOLDER = BASE_DIR / "RAG-PIPELINE/database" / "raw"
+    PARSED_FOLDER = PIPELINE_ROOT / "database" / "parsed"
+    RAW_FOLDER = PIPELINE_ROOT / "database" / "raw"
+    
+    # Ensure directories exist
+    PARSED_FOLDER.mkdir(parents=True, exist_ok=True)
+    RAW_FOLDER.mkdir(parents=True, exist_ok=True)
 
 class QdrantManager:
     def __init__(self):
@@ -285,4 +293,4 @@ def run_embedding(files: List[str]):
 
     if processed_files:
         from modules.utils.qdrant_verifier import verify_and_retry_indexing
-        verify_and_retry_indexing(manager, processed_files, log_dir="RAG-PIPELINE/logs")
+        verify_and_retry_indexing(manager, processed_files, log_dir=str(Config.PIPELINE_ROOT / "logs"))

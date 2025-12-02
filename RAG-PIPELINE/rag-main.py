@@ -11,13 +11,22 @@ from modules.embedding_qdrant import run_embedding
 from modules.utils.file_utils import resolve_pdf_path, list_google_drive_folder, download_google_drive_file, is_url
 from modules.utils.pipeline_logger import pipeline_logger
 
-load_dotenv()
+# Load environment variables (prioritize .env.local)
+env_path = Path(__file__).resolve().parent / ".env.local"
+load_dotenv(env_path if env_path.exists() else Path(os.getcwd()) / ".env")
 
 class Config:
-    BASE_DIR = Path(os.getcwd())
-    SPLITTED_DIR = BASE_DIR / "RAG-PIPELINE/database" / "splitted"
-    RAW_DIR = BASE_DIR / "RAG-PIPELINE/database" / "raw"
+    BASE_DIR = Path(os.getenv("BASE_DIR", os.getcwd()))
+    PIPELINE_ROOT = BASE_DIR
+    
+    SPLITTED_DIR = PIPELINE_ROOT / "database" / "splitted"
+    RAW_DIR = PIPELINE_ROOT / "database" / "raw"
     MODULES_DIR = BASE_DIR / "modules"
+    
+    # Ensure directories exist
+    SPLITTED_DIR.mkdir(parents=True, exist_ok=True)
+    RAW_DIR.mkdir(parents=True, exist_ok=True)
+    (PIPELINE_ROOT / "logs").mkdir(parents=True, exist_ok=True)
 
 def get_split_files(original_pdf: Path) -> list[str]:
     """Finds existing split files for a given PDF."""
@@ -48,7 +57,7 @@ def process_pdf(pdf_file: Path, phases: dict):
         try:
             split_files = run_splitter(str(pdf_file))
             if not split_files: 
-                print("[ERROR] Splitting failed.")
+                print("[WARN] Splitting skipped or failed.")
                 pipeline_logger.log_phase("Split", "FAILED", "No files generated")
                 return
             print(f"[INFO] Generated {len(split_files)} files.")
@@ -89,7 +98,7 @@ def process_pdf(pdf_file: Path, phases: dict):
         missing_chunks = []
         for sf in split_files:
             sf_path = Path(sf)
-            chunk_path = Config.BASE_DIR / "RAG-PIPELINE/database" / "parsed" / f"{sf_path.stem}_chunks.json"
+            chunk_path = Config.PIPELINE_ROOT / "database" / "parsed" / f"{sf_path.stem}_chunks.json"
             if not chunk_path.exists():
                 missing_chunks.append(sf_path.name)
         
@@ -120,10 +129,11 @@ def cleanup_temp_files(original_pdf: Path):
     stem = original_pdf.stem
     
     # Define patterns to remove
+    # Define patterns to remove
     patterns = [
-        Config.BASE_DIR / "RAG-PIPELINE/database" / "raw" / f"{stem}*",
+        Config.PIPELINE_ROOT / "database" / "raw" / f"{stem}*",
         Config.SPLITTED_DIR / f"{stem}*",
-        Config.BASE_DIR / "RAG-PIPELINE/database" / "parsed" / f"{stem}*"
+        Config.PIPELINE_ROOT / "database" / "parsed" / f"{stem}*"
     ]
     
     import glob

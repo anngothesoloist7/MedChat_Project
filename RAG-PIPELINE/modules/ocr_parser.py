@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import time
 import json
 import sys
@@ -9,11 +10,16 @@ from mistralai import Mistral, DocumentURLChunk
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 
-load_dotenv()
+# Load environment variables (prioritize .env.local)
+base_path = Path(__file__).resolve().parent.parent
+env_path = base_path / ".env.local"
+load_dotenv(env_path if env_path.exists() else base_path / ".env")
 
 class Config:
-    BASE_DIR = os.getcwd()
-    PARSED_DIR = os.path.join(BASE_DIR, "RAG-PIPELINE/database", "parsed")
+    BASE_DIR = os.getenv("BASE_DIR", os.getcwd())
+    PIPELINE_ROOT = BASE_DIR
+    
+    PARSED_DIR = os.path.join(PIPELINE_ROOT, "database", "parsed")
     MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
     MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-ocr-latest")
     MAX_REQUESTS_PER_MINUTE = int(os.getenv("MAX_REQUESTS_PER_MINUTE", 20))
@@ -100,7 +106,7 @@ def process_file(file_path: str):
         print(f"[INFO] Requesting OCR...")
         
         import itertools
-        max_retries = 3
+        max_retries = 10
         ocr_start_total = time.time()
 
         for attempt in range(max_retries):
@@ -136,9 +142,11 @@ def process_file(file_path: str):
                 
                 error_str = str(e)
                 # Check for 500/502/503/504 errors or Cloudflare HTML responses
-                if any(code in error_str for code in ["500", "502", "503", "504"]) or "Internal server error" in error_str:
+                if any(code in error_str for code in ["500", "502", "503", "504", "Bad gateway", "Service Unavailable"]) or "Internal server error" in error_str:
                     if attempt < max_retries - 1:
-                        wait_time = 10 * (2 ** attempt) # 10s, 20s, 40s (increased wait for server errors)
+                        # Exponential backoff with a higher base for server issues
+                        # 30s, 60s, 120s, 240s... cap at 600s (10 mins)
+                        wait_time = min(600, 30 * (2 ** attempt))
                         print(f"\n[WARN] OCR Server Error (Attempt {attempt+1}/{max_retries}). Retrying in {wait_time}s...")
                         
                         # Dynamic countdown
@@ -151,7 +159,7 @@ def process_file(file_path: str):
                 
                 # For other errors or if retries exhausted
                 if attempt < max_retries - 1:
-                    wait_time = 5 * (2 ** attempt)
+                    wait_time = 10 * (2 ** attempt)
                     print(f"\n[WARN] OCR failed (Attempt {attempt+1}/{max_retries}): {e}")
                     print(f"[INFO] Retrying in {wait_time}s...")
                     time.sleep(wait_time)
@@ -181,7 +189,11 @@ def process_file(file_path: str):
         # Fix: Remove extension first, then remove split suffix to match original metadata file
         base_name_no_ext = filename.replace(".pdf", "")
         base_name = re.sub(r'\(\d+(-\d+)?\)$', '', base_name_no_ext).strip()
-        meta_path = os.path.join(Config.BASE_DIR, "RAG-PIPELINE/database", "raw", f"{base_name}_metadata.json")
+        
+        # Determine Pipeline Root (re-calculate locally or use Config)
+        pipeline_root = Config.PIPELINE_ROOT if hasattr(Config, 'PIPELINE_ROOT') else Config.BASE_DIR
+        
+        meta_path = os.path.join(pipeline_root, "database", "raw", f"{base_name}_metadata.json")
         
         full_markdown = "\n\n".join(md_parts)
         is_translated = False
