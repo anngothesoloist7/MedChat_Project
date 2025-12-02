@@ -1,19 +1,22 @@
 import os
 import shutil
+import os
+import shutil
 import argparse
 from pathlib import Path
 from dotenv import load_dotenv
 from modules.splitter_metadata import run_splitter
 from modules.ocr_parser import run_ocr_parser
 from modules.embedding_qdrant import run_embedding
-from modules.utils.file_utils import resolve_pdf_path
+from modules.utils.file_utils import resolve_pdf_path, list_google_drive_folder, download_google_drive_file, is_url
+from modules.utils.pipeline_logger import pipeline_logger
 
 load_dotenv()
 
 class Config:
     BASE_DIR = Path(os.getcwd())
-    SPLITTED_DIR = BASE_DIR / "database" / "splitted"
-    RAW_DIR = BASE_DIR / "database" / "raw"
+    SPLITTED_DIR = BASE_DIR / "RAG-PIPELINE/database" / "splitted"
+    RAW_DIR = BASE_DIR / "RAG-PIPELINE/database" / "raw"
     MODULES_DIR = BASE_DIR / "modules"
 
 def get_split_files(original_pdf: Path) -> list[str]:
@@ -31,8 +34,6 @@ def clear_pycache():
             for p in target.rglob("__pycache__"):
                 try: shutil.rmtree(p)
                 except Exception: pass
-
-from modules.utils.pipeline_logger import pipeline_logger
 
 def process_pdf(pdf_file: Path, phases: dict):
     print(f"\n{'='*40}\nProcessing: {pdf_file.name}\n{'='*40}")
@@ -88,19 +89,7 @@ def process_pdf(pdf_file: Path, phases: dict):
         missing_chunks = []
         for sf in split_files:
             sf_path = Path(sf)
-            # Check for standard chunks or translated chunks
-            # Logic: If translated exists, we use that. Else standard.
-            # But here we just need to ensure *something* exists for every file.
-            # Actually, run_embedding handles the logic of picking the right file.
-            # We just need to check if run_ocr_parser succeeded for all.
-            
-            # Simple check: look for {stem}_chunks.json or {stem}_translated_pages.json
-            # Note: ocr_parser saves to {stem}_chunks.json ALWAYS (even if translated, it saves chunks there too? 
-            # No, ocr_parser saves to {stem}_chunks.json at the end of process_file regardless of translation).
-            # Wait, let's check ocr_parser.py...
-            # Yes, save_parsed_content is called at the end. So {stem}_chunks.json should exist.
-            
-            chunk_path = Config.BASE_DIR / "database" / "parsed" / f"{sf_path.stem}_chunks.json"
+            chunk_path = Config.BASE_DIR / "RAG-PIPELINE/database" / "parsed" / f"{sf_path.stem}_chunks.json"
             if not chunk_path.exists():
                 missing_chunks.append(sf_path.name)
         
@@ -132,9 +121,9 @@ def cleanup_temp_files(original_pdf: Path):
     
     # Define patterns to remove
     patterns = [
-        Config.BASE_DIR / "database" / "raw" / f"{stem}*",
+        Config.BASE_DIR / "RAG-PIPELINE/database" / "raw" / f"{stem}*",
         Config.SPLITTED_DIR / f"{stem}*",
-        Config.BASE_DIR / "database" / "parsed" / f"{stem}*"
+        Config.BASE_DIR / "RAG-PIPELINE/database" / "parsed" / f"{stem}*"
     ]
     
     import glob
@@ -148,6 +137,33 @@ def cleanup_temp_files(original_pdf: Path):
                 print(f"[WARN] Failed to delete {f}: {e}")
     print(f"[INFO] Removed {count} temporary files.")
 
+def handle_input_source(input_path: str) -> list[dict]:
+    """
+    Resolves input to a list of file info dicts.
+    Returns: [{'name': str, 'path': Path, 'url': str, 'type': 'local'|'gdrive'}]
+    """
+    path = Path(input_path)
+    
+    # 1. Local Directory
+    if path.is_dir():
+        return [{'name': p.name, 'path': p, 'type': 'local'} for p in path.glob("*.pdf")]
+        
+    # 2. URL
+    if is_url(input_path):
+        # Check if it's a GDrive Folder
+        if "drive.google.com" in input_path and "folders" in input_path:
+             files = list_google_drive_folder(input_path)
+             return [{'name': f['name'], 'url': f['url'], 'type': 'gdrive'} for f in files]
+        else:
+             # Single file URL
+             return [{'name': 'Single URL File', 'url': input_path, 'type': 'url'}]
+
+    # 3. Local File
+    if path.is_file() and path.suffix == ".pdf":
+        return [{'name': path.name, 'path': path, 'type': 'local'}]
+        
+    return []
+
 def main():
     clear_pycache()
     parser = argparse.ArgumentParser(description="Medical RAG Pipeline")
@@ -158,25 +174,58 @@ def main():
 
     raw_input = args.input_path or input("Enter path or URL: ").strip('"')
     
-    files = []
+    # Get list of potential files (without downloading yet for GDrive)
+    candidates = handle_input_source(raw_input)
     
-    # Check if input is a directory
-    if os.path.isdir(raw_input):
-        input_path = Path(raw_input)
-        files = list(input_path.glob("*.pdf"))
+    if not candidates: return print("[WARN] No PDF files found.")
+
+    # Interactive Selection
+    print(f"\n[INFO] Found {len(candidates)} files:")
+    for i, f in enumerate(candidates[:20]): # Show first 20
+        print(f"{i+1}. {f['name']}")
+    if len(candidates) > 20: print(f"... and {len(candidates)-20} more.")
+
+    selected_candidates = []
+    if len(candidates) > 1:
+        choice = input(f"\nHow many files to process? (Enter number 1-{len(candidates)} or 'all'): ").strip().lower()
+        
+        if choice == 'all':
+            selected_candidates = candidates
+        else:
+            try:
+                limit = int(choice)
+                if 1 <= limit <= len(candidates):
+                    selected_candidates = candidates[:limit]
+                else:
+                    print(f"[WARN] Invalid number. Processing all.")
+                    selected_candidates = candidates
+            except ValueError:
+                print(f"[WARN] Invalid input. Processing all.")
+                selected_candidates = candidates
     else:
-        # Try to resolve as a single file or URL
-        try:
-            # Resolve/Download the file
-            resolved_path = resolve_pdf_path(raw_input, download_dir=str(Config.RAW_DIR))
-            files = [Path(resolved_path)]
-        except Exception as e:
-            print(f"[ERROR] {e}")
-            return
+        selected_candidates = candidates
 
-    if not files: return print("[WARN] No PDF files found.")
+    print(f"\n[INFO] Processing {len(selected_candidates)} files...")
+    
+    # Prepare files for processing (Download if needed)
+    final_files = []
+    for item in selected_candidates:
+        if item['type'] == 'local':
+            final_files.append(item['path'])
+        elif item['type'] == 'gdrive':
+            print(f"[INFO] Downloading {item['name']}...")
+            try:
+                path = download_google_drive_file(item['url'], output_dir=str(Config.RAW_DIR))
+                final_files.append(Path(path))
+            except Exception as e:
+                print(f"[ERROR] Failed to download {item['name']}: {e}")
+        elif item['type'] == 'url':
+            try:
+                path = resolve_pdf_path(item['url'], download_dir=str(Config.RAW_DIR))
+                final_files.append(Path(path))
+            except Exception as e:
+                print(f"[ERROR] Failed to download URL: {e}")
 
-    print(f"[INFO] Found {len(files)} files.")
     phases = {
         'p1': args.phase is None or args.phase == 1,
         'p2': args.phase is None or args.phase == 2,
@@ -184,7 +233,7 @@ def main():
         'clean': args.clean == 1
     }
 
-    for f in files: process_pdf(f, phases)
+    for f in final_files: process_pdf(f, phases)
     print("\n[INFO] Pipeline Completed")
 
 if __name__ == "__main__":

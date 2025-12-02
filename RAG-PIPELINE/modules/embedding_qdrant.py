@@ -23,8 +23,8 @@ class Config:
     DENSE_VECTOR_SIZE = int(os.getenv("DENSE_VECTOR_SIZE", 1536))
     GEMINI_BATCH_SIZE = int(os.getenv("GEMINI_BATCH_SIZE", 100))
     QDRANT_BATCH_SIZE = int(os.getenv("QDRANT_BATCH_SIZE", 100))
-    PARSED_FOLDER = BASE_DIR / "database" / "parsed"
-    RAW_FOLDER = BASE_DIR / "database" / "raw"
+    PARSED_FOLDER = BASE_DIR / "RAG-PIPELINE/database" / "parsed"
+    RAW_FOLDER = BASE_DIR / "RAG-PIPELINE/database" / "raw"
 
 class QdrantManager:
     def __init__(self):
@@ -228,15 +228,44 @@ class QdrantManager:
         total = len(chunks)
         print(f"[INFO] Indexing {total:,} chunks (Batch: {Config.GEMINI_BATCH_SIZE})...")
         
+        # Get collection size before
+        try:
+            info_before = self.qdrant_client.get_collection(Config.COLLECTION_NAME)
+            size_before = info_before.points_count
+        except: size_before = 0
+        
         start = time.time()
+        imported_count = 0
+        failed_count = 0
         
         with tqdm(total=total, desc="Indexing", unit="chunk") as pbar:
             for i in range(0, total, Config.GEMINI_BATCH_SIZE):
                 batch = chunks[i : i + Config.GEMINI_BATCH_SIZE]
-                processed_count = self.process_batch(batch, book_meta, i // Config.GEMINI_BATCH_SIZE)
-                pbar.update(processed_count)
+                processed = self.process_batch(batch, book_meta, i // Config.GEMINI_BATCH_SIZE)
+                if processed > 0:
+                    imported_count += processed
+                else:
+                    failed_count += len(batch)
+                pbar.update(len(batch))
+        
+        # Get collection size after
+        try:
+            info_after = self.qdrant_client.get_collection(Config.COLLECTION_NAME)
+            size_after = info_after.points_count
+        except: size_after = 0
             
         print(f"[SUCCESS] Finished in {(time.time() - start)/60:.1f} min")
+        
+        # Enhanced Logging
+        from modules.utils.pipeline_logger import pipeline_logger
+        pipeline_logger.log_phase_3(
+            book_name=book_meta.get("book_name", path.stem),
+            total_chunks=total,
+            imported=imported_count,
+            failed=failed_count,
+            collection_size_before=size_before,
+            collection_size_after=size_after
+        )
 
 def run_embedding(files: List[str]):
     manager = QdrantManager()
@@ -256,4 +285,4 @@ def run_embedding(files: List[str]):
 
     if processed_files:
         from modules.utils.qdrant_verifier import verify_and_retry_indexing
-        verify_and_retry_indexing(manager, processed_files, log_dir="logs")
+        verify_and_retry_indexing(manager, processed_files, log_dir="RAG-PIPELINE/logs")

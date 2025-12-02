@@ -20,8 +20,8 @@ class Config:
     TARGET_CHUNK_SIZE = int(os.getenv('TARGET_CHUNK_SIZE_MB', 50)) * 1024 * 1024
     MAX_PAGES = int(os.getenv('MAX_PAGES', 500))
     BASE_DIR = Path(os.getcwd())
-    RAW_FOLDER = BASE_DIR / "database" / "raw"
-    SPLITTED_FOLDER = BASE_DIR / "database" / "splitted"
+    RAW_FOLDER = BASE_DIR / "RAG-PIPELINE/database" / "raw"
+    SPLITTED_FOLDER = BASE_DIR / "RAG-PIPELINE/database" / "splitted"
     MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
     GOOGLE_API_KEY = os.getenv("GOOGLE_CHAT_API_KEY")
     MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-ocr-latest")
@@ -193,17 +193,19 @@ def run_splitter(input_path_str: str) -> List[str]:
     print(f"[INFO] PDF Hash (ID): {pdf_id}")
     
     # Check and delete existing points in Qdrant
+    points_deleted = False
+    collection_status = "Unknown"
+    
     try:
         from modules.embedding_qdrant import QdrantManager
         from qdrant_client import models
         
         q_manager = QdrantManager()
         if q_manager.check_connections():
-            # Ensure collection exists
             q_manager.init_collection()
+            collection_status = "Exists/Created"
             
             print(f"[INFO] Checking for existing points with pdf_id: {pdf_id}...")
-            # Check if any points exist with this pdf_id
             count_res = q_manager.qdrant_client.count(
                 collection_name=q_manager.Config.COLLECTION_NAME,
                 count_filter=models.Filter(
@@ -212,7 +214,7 @@ def run_splitter(input_path_str: str) -> List[str]:
             )
             
             if count_res.count > 0:
-                print(f"[WARN] Found {count_res.count} existing points for this PDF. Deleting...")
+                print(f"[WARN] Found {count_res.count} existing points. Deleting...")
                 q_manager.qdrant_client.delete(
                     collection_name=q_manager.Config.COLLECTION_NAME,
                     points_selector=models.FilterSelector(
@@ -222,10 +224,12 @@ def run_splitter(input_path_str: str) -> List[str]:
                     )
                 )
                 print("[SUCCESS] Deleted existing points.")
+                points_deleted = True
             else:
                 print("[INFO] No existing points found.")
     except Exception as e:
-        print(f"[WARN] Failed to check/delete existing points: {e}")
+        print(f"[WARN] Qdrant check failed: {e}")
+        collection_status = f"Error: {str(e)[:50]}"
 
     extract_metadata(raw_path, pdf_id)
     proc = PDFProcessor()
@@ -235,4 +239,15 @@ def run_splitter(input_path_str: str) -> List[str]:
     print("[INFO] Splitting...")
     split_files = proc.split_pdf(raw_path, Config.SPLITTED_FOLDER)
     print(f"[INFO] Done! Saved in: {Config.SPLITTED_FOLDER}")
+    
+    # Enhanced Logging
+    from modules.utils.pipeline_logger import pipeline_logger
+    pipeline_logger.log_phase_1(
+        pdf_name=path.name,
+        file_id=pdf_id,
+        exists=(points_deleted), # If points were deleted, it existed
+        collection_status=collection_status,
+        points_deleted=points_deleted
+    )
+    
     return [str(p) for p in split_files]

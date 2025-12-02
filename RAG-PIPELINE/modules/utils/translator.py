@@ -58,15 +58,18 @@ class Translator:
         print(f"[INFO] Translating {len(pages)} pages in {len(batches)} batches (Parallel)...")
         
         results = []
+        from tqdm import tqdm
+        
         with ThreadPoolExecutor(max_workers=3) as executor: # Limit workers to avoid rate limits
             futures = {executor.submit(process_batch, b[0], b[1]): b[0] for b in batches}
             
-            for future in as_completed(futures):
+            # Use tqdm to show progress bar
+            for future in tqdm(as_completed(futures), total=len(batches), desc="Translating Batches", unit="batch"):
                 try:
                     batch_idx, trans_text = future.result()
                     results.append((batch_idx, trans_text))
                 except Exception as e:
-                    print(f"[ERROR] Batch translation failed: {e}")
+                    print(f"\n[ERROR] Batch translation failed: {e}")
 
         # Sort results by batch index to maintain order
         results.sort(key=lambda x: x[0])
@@ -104,22 +107,6 @@ class Translator:
         max_retries = 5
         
         for attempt in range(max_retries):
-            # Spinner setup
-            stop_spinner = threading.Event()
-            
-            def spin():
-                spinner = itertools.cycle(['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'])
-                start_time = time.time()
-                while not stop_spinner.is_set():
-                    elapsed = time.time() - start_time
-                    sys.stdout.write(f"\r[WAIT] Translating... {next(spinner)} {elapsed:.1f}s")
-                    sys.stdout.flush()
-                    time.sleep(0.1)
-                sys.stdout.write("\r" + " "*60 + "\r") # Clear line
-
-            t = threading.Thread(target=spin)
-            t.start()
-            
             process_start = time.time()
 
             try:
@@ -137,27 +124,23 @@ class Translator:
                         tools=[] # No external tools
                     )
                 )
-                stop_spinner.set()
-                t.join()
-                # total_time = time.time() - process_start
-                # print(f"[INFO] Translation Done in {total_time:.1f}s") 
+                total_time = time.time() - process_start
+                print(f"[INFO] Translation Done in {total_time:.1f}s") 
                 # Commented out to avoid spamming logs in parallel mode
                 return response.text
             except Exception as e:
-                stop_spinner.set()
-                t.join()
-                
                 # Check for 429 Resource Exhausted
                 if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
                     wait_time = 30 * (2 ** attempt) # 30s, 60s, 120s...
-                    print(f"\n[WARN] Translation rate limit hit (Attempt {attempt+1}/{max_retries}). Retrying in {wait_time}s...")
+                    # Use tqdm.write to avoid breaking the progress bar
+                    from tqdm import tqdm
+                    tqdm.write(f"[WARN] Translation rate limit hit (Attempt {attempt+1}/{max_retries}). Retrying in {wait_time}s...")
                     
                     # Dynamic countdown
                     for remaining in range(wait_time, 0, -1):
-                        sys.stdout.write(f"\r[WAIT] Cooling down... {remaining}s ")
-                        sys.stdout.flush()
+                        # Simple sleep for now to keep tqdm clean, or use a separate progress bar if really needed
+                        # But printing countdown inside a tqdm loop is messy.
                         time.sleep(1)
-                    sys.stdout.write("\r" + " "*40 + "\r")
                 else:
                     print(f"\n[ERROR] Translation failed: {e}")
                     return text # Non-retriable error, return original

@@ -23,7 +23,7 @@ def setup_logger(log_dir: str):
 def verify_and_retry_indexing(
     qdrant_manager,
     json_files: list[str],
-    log_dir: str = "logs"
+    log_dir: str = "RAG-PIPELINE/logs"
 ) -> bool:
     """
     Verify if all chunks from the provided JSON files are indexed in Qdrant.

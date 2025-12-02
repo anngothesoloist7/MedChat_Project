@@ -7,13 +7,16 @@ wheels/
 *.egg-info
 
 # Virtual environments
-.venv
-.env
+#.venv
+#.env
+
+#=== Rag Pipeline ===#
 
 # Logs
-logs/*
+RAG-PIPELINE/logs/*
 
 # Database
-database/raw/*
-database/splitted/*
-database/parsed/*
+RAG-PIPELINE/database/raw/*
+RAG-PIPELINE/database/splitted/*
+RAG-PIPELINE/database/parsed/*
+docs/*

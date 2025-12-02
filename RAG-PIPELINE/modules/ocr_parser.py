@@ -13,7 +13,7 @@ load_dotenv()
 
 class Config:
     BASE_DIR = os.getcwd()
-    PARSED_DIR = os.path.join(BASE_DIR, "database", "parsed")
+    PARSED_DIR = os.path.join(BASE_DIR, "RAG-PIPELINE/database", "parsed")
     MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
     MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-ocr-latest")
     MAX_REQUESTS_PER_MINUTE = int(os.getenv("MAX_REQUESTS_PER_MINUTE", 20))
@@ -181,7 +181,7 @@ def process_file(file_path: str):
         # Fix: Remove extension first, then remove split suffix to match original metadata file
         base_name_no_ext = filename.replace(".pdf", "")
         base_name = re.sub(r'\(\d+(-\d+)?\)$', '', base_name_no_ext).strip()
-        meta_path = os.path.join(Config.BASE_DIR, "database", "raw", f"{base_name}_metadata.json")
+        meta_path = os.path.join(Config.BASE_DIR, "RAG-PIPELINE/database", "raw", f"{base_name}_metadata.json")
         
         full_markdown = "\n\n".join(md_parts)
         is_translated = False
@@ -240,12 +240,24 @@ def process_file(file_path: str):
             print(f"[WARN] Metadata not found at {meta_path}. Skipping translation check.")
 
         chunks = parse_markdown_for_rag(pages_data, filename)
-        
-        # If translated, we might want to indicate that in the filename or metadata
         save_parsed_content(filename, full_markdown, chunks, json_pages)
         print(f"[SUCCESS] {filename}: {len(chunks)} chunks.")
+        
+        # Enhanced Logging
+        from modules.utils.pipeline_logger import pipeline_logger
+        pipeline_logger.log_phase_2(
+            split_file=filename,
+            ocr_status="Success",
+            translated=is_translated,
+            chunks=len(chunks),
+            time_taken=time.time() - ocr_start_total
+        )
             
-    except Exception as e: print(f"[ERROR] Failed {filename}: {e}")
+    except Exception as e:
+        print(f"[ERROR] Failed {filename}: {e}")
+        from modules.utils.pipeline_logger import pipeline_logger
+        pipeline_logger.log_phase("OCR & Parsing", "ERROR", f"{filename} | {str(e)}")
+        
     finally:
         if file_id:
             try: client.files.delete(file_id=file_id)

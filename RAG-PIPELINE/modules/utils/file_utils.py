@@ -186,7 +186,71 @@ def download_file(url: str, output_dir: str = "downloads") -> str:
         except requests.exceptions.RequestException as e:
             raise Exception(f"Failed to download file from URL: {e}")
 
-def resolve_pdf_path(input_path: str, download_dir: str = "database/raw") -> str:
+def list_google_drive_folder(url: str) -> list[dict]:
+    """
+    List files in a Google Drive folder without downloading them.
+    Returns a list of dicts: {'name': str, 'url': str}
+    """
+    print(f"[INFO] Listing Google Drive folder: {url}")
+    captured_files = []
+    
+    # Mock function to replace download
+    def mock_download(url, output, quiet=False, fuzzy=False, use_cookies=False, **kwargs):
+        import os
+        filename = os.path.basename(output) if output else "Unknown"
+        captured_files.append({'name': filename, 'url': url})
+        return output
+
+    try:
+        import gdown.download_folder
+        
+        # Save original
+        original_download = gdown.download_folder.download
+        
+        # Monkey-patch the one used inside download_folder
+        gdown.download_folder.download = mock_download
+        
+        # Create dummy dir to satisfy any existence checks
+        import shutil
+        dummy_dir = "dummy_list_dir"
+        if os.path.exists(dummy_dir):
+            shutil.rmtree(dummy_dir)
+        os.makedirs(dummy_dir, exist_ok=True)
+        
+        # Call download_folder
+        gdown.download_folder.download_folder(url, output=dummy_dir, quiet=True, use_cookies=False)
+        
+        # Filter for PDFs
+        pdf_files = [f for f in captured_files if f['name'].lower().endswith('.pdf')]
+        
+        # Remove duplicates
+        unique_files = []
+        seen_urls = set()
+        for f in pdf_files:
+            if f['url'] not in seen_urls:
+                unique_files.append(f)
+                seen_urls.add(f['url'])
+                
+        return unique_files
+
+    except Exception as e:
+        print(f"[ERROR] Failed to list GDrive folder: {e}")
+        return []
+    finally:
+        # Restore original
+        if 'gdown.download_folder' in locals() and 'original_download' in locals():
+            gdown.download_folder.download = original_download
+        
+        # Cleanup dummy dir
+        if os.path.exists("dummy_list_dir"):
+            try: shutil.rmtree("dummy_list_dir")
+            except: pass
+
+def download_google_drive_file(file_url: str, output_dir: str) -> str:
+    """Downloads a single file from GDrive."""
+    return download_file(file_url, output_dir)
+
+def resolve_pdf_path(input_path: str, download_dir: str = "RAG-PIPELINE/database/raw") -> str:
     """
     Resolve the PDF path. If it's a URL, download it. If it's a local path, verify it exists.
     
