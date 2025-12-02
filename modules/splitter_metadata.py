@@ -96,7 +96,7 @@ class PDFProcessor:
         pages, size = self.get_pdf_info(path)
         return {'name': path.name, 'pages': pages, 'size_mb': size / 1048576, 'chunks': len(self.calculate_ranges(pages, size))}
 
-def extract_metadata(file_path: Path):
+def extract_metadata(file_path: Path, pdf_id: str = None):
     print(f"\n[INFO] Extracting metadata: {file_path.name}")
     if not Config.MISTRAL_API_KEY or not Config.GOOGLE_API_KEY:
         return print("[ERROR] Missing API keys.")
@@ -150,8 +150,19 @@ def extract_metadata(file_path: Path):
             )
         )
         
-        meta_json = response.text.strip()
-        if "```" in meta_json: meta_json = meta_json.split("```json")[-1].split("```")[0].strip()
+        meta_json_str = response.text.strip()
+        if "```" in meta_json_str: meta_json_str = meta_json_str.split("```json")[-1].split("```")[0].strip()
+        
+        # Parse and add pdf_id
+        try:
+            meta_data = json.loads(meta_json_str)
+            if pdf_id:
+                meta_data["pdf_id"] = pdf_id
+            meta_json = json.dumps(meta_data, indent=2, ensure_ascii=False)
+        except Exception:
+            # Fallback if JSON parsing fails, just save string (though pdf_id won't be added cleanly)
+            print("[WARN] Failed to parse metadata JSON, saving raw string.")
+            meta_json = meta_json_str
             
         meta_path = Config.RAW_FOLDER / f"{file_path.stem}_metadata.json"
         meta_path.write_text(meta_json, encoding="utf-8")
@@ -176,7 +187,47 @@ def run_splitter(input_path_str: str) -> List[str]:
         shutil.copy2(path, raw_path)
         print(f"[INFO] Saved to raw: {raw_path}")
 
-    extract_metadata(raw_path)
+    # Calculate PDF hash
+    from modules.utils.hash_utils import get_file_id
+    pdf_id = get_file_id(str(raw_path))
+    print(f"[INFO] PDF Hash (ID): {pdf_id}")
+    
+    # Check and delete existing points in Qdrant
+    try:
+        from modules.embedding_qdrant import QdrantManager
+        from qdrant_client import models
+        
+        q_manager = QdrantManager()
+        if q_manager.check_connections():
+            # Ensure collection exists
+            q_manager.init_collection()
+            
+            print(f"[INFO] Checking for existing points with pdf_id: {pdf_id}...")
+            # Check if any points exist with this pdf_id
+            count_res = q_manager.qdrant_client.count(
+                collection_name=q_manager.Config.COLLECTION_NAME,
+                count_filter=models.Filter(
+                    must=[models.FieldCondition(key="pdf_id", match=models.MatchValue(value=pdf_id))]
+                )
+            )
+            
+            if count_res.count > 0:
+                print(f"[WARN] Found {count_res.count} existing points for this PDF. Deleting...")
+                q_manager.qdrant_client.delete(
+                    collection_name=q_manager.Config.COLLECTION_NAME,
+                    points_selector=models.FilterSelector(
+                        filter=models.Filter(
+                            must=[models.FieldCondition(key="pdf_id", match=models.MatchValue(value=pdf_id))]
+                        )
+                    )
+                )
+                print("[SUCCESS] Deleted existing points.")
+            else:
+                print("[INFO] No existing points found.")
+    except Exception as e:
+        print(f"[WARN] Failed to check/delete existing points: {e}")
+
+    extract_metadata(raw_path, pdf_id)
     proc = PDFProcessor()
     info = proc.get_info(raw_path)
     print(f"\n[INFO] {info['name']} | {info['size_mb']:.2f}MB | {info['pages']} pages | {info['chunks']} chunks")

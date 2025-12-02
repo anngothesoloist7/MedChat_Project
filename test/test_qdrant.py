@@ -14,8 +14,6 @@ DENSE_VECTOR_SIZE = 1536
 
 import requests
 
-import requests
-
 print(f"Connecting to {QDRANT_URL}...")
 headers = {"api-key": QDRANT_API_KEY} if QDRANT_API_KEY else {}
 

@@ -9,3 +9,11 @@ wheels/
 # Virtual environments
 .venv
 .env
+
+# Logs
+logs/*
+
+# Database
+database/raw/*
+database/splitted/*
+database/parsed/*

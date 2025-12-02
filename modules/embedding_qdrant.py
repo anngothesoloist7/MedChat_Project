@@ -42,6 +42,9 @@ class QdrantManager:
             timeout=60,
             prefer_grpc=False,
         )
+        # Expose Config for external use (e.g. verifier)
+        self.Config = Config
+        
         # Initialize BM25 model for sparse vectors
         self.sparse_model = SparseTextEmbedding(model_name="Qdrant/bm25")
         
@@ -121,12 +124,35 @@ class QdrantManager:
             
         return meta
 
+    @staticmethod
+    def generate_id(book_name: str, page_num: Any, text: str) -> str:
+        unique_content = f"{book_name}_{page_num}_{text}"
+        return str(uuid.uuid5(uuid.NAMESPACE_DNS, unique_content))
+
     def process_batch(self, batch: List[Dict], book_meta: Dict[str, Any], batch_index: int):
         """Processes a single batch: Embed -> Create Points -> Upsert"""
         try:
             # 1. Embed
             texts = [c['content'] for c in batch]
-            embeddings = self.get_embeddings_batch(texts)
+            
+            # Filter out empty texts to avoid 400 errors
+            valid_indices = [i for i, t in enumerate(texts) if t and t.strip()]
+            if not valid_indices:
+                print(f"[WARN] Batch {batch_index} skipped: All chunks are empty.")
+                return 0
+                
+            valid_texts = [texts[i] for i in valid_indices]
+            
+            try:
+                embeddings_valid = self.get_embeddings_batch(valid_texts)
+            except Exception as e:
+                print(f"[ERROR] Embedding failed for batch {batch_index}. First text snippet: {valid_texts[0][:50]}...")
+                raise e
+            
+            # Reconstruct embeddings list matching original batch (fill None/zeros for empty)
+            embeddings = [None] * len(batch)
+            for i, valid_idx in enumerate(valid_indices):
+                embeddings[valid_idx] = embeddings_valid[i]
             
             # Generate Sparse Vectors (BM25)
             # fastembed returns a generator, convert to list
@@ -145,6 +171,9 @@ class QdrantManager:
                 lang = book_meta.get("language") or book_meta.get("LANGUAGE") or "Unknown"
                 page_num = chunk['metadata'].get('page_number', chunk['metadata'].get('page', "Unknown"))
                 
+                # Get pdf_id from metadata (if available)
+                pdf_id = book_meta.get("pdf_id", "Unknown")
+                
                 payload = {
                     "text": text,
                     "book_name": b_name,
@@ -152,13 +181,22 @@ class QdrantManager:
                     "publish_year": year,
                     "keywords": keywords,
                     "language": lang,
-                    "page_number": page_num
+                    "page_number": page_num,
+                    "pdf_id": pdf_id
                 }
                 
                 # Convert sparse vector to Qdrant format
                 sv = sparse_vectors[j]
+                
+                # Skip if no embedding (empty text)
+                if embeddings[j] is None:
+                    continue
+
+                # Create a unique, deterministic ID for this chunk
+                point_id = self.generate_id(b_name, page_num, text)
+                
                 points.append(models.PointStruct(
-                    id=str(uuid.uuid5(uuid.NAMESPACE_DNS, text)),
+                    id=point_id,
                     payload=payload,
                     vector={
                         "dense": embeddings[j],
@@ -205,8 +243,17 @@ def run_embedding(files: List[str]):
     if not manager.check_connections(): return
     manager.init_collection()
     
+    processed_files = []
+    
     for f in files:
         path = Path(f)
         target = Config.PARSED_FOLDER / f"{path.stem}_chunks.json" if path.suffix.lower() == '.pdf' else path
-        if target.exists(): manager.process_and_index(str(target))
-        else: print(f"[WARN] Chunks not found: {path.name}")
+        if target.exists(): 
+            manager.process_and_index(str(target))
+            processed_files.append(str(target))
+        else: 
+            print(f"[WARN] Chunks not found: {path.name}")
+
+    if processed_files:
+        from modules.utils.qdrant_verifier import verify_and_retry_indexing
+        verify_and_retry_indexing(manager, processed_files, log_dir="logs")
