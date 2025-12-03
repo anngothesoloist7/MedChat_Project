@@ -1,0 +1,40 @@
+2025-12-03 09:15:36,595 - INFO - Processing PDF: The ECG Made Easy 8th Edition PDF 8ed 0546.pdf
+2025-12-03 09:15:36,595 - INFO - PHASE: Split | STATUS: STARTED | File: The ECG Made Easy 8th Edition PDF 8ed 0546.pdf
+2025-12-03 09:16:12,210 - INFO - PHASE: Split & Metadata | STATUS: COMPLETED | The ECG Made Easy 8th Edition PDF 8ed 0546.pdf | FileID: 0d84e8be... | Exists: False | Collection: Exists/Created | Cleaned Old Points: False
+2025-12-03 09:16:12,213 - INFO - PHASE: Split | STATUS: COMPLETED | Generated 1 files
+2025-12-03 09:16:12,213 - INFO - PHASE: OCR | STATUS: STARTED | Files: 1
+2025-12-03 09:16:36,866 - INFO - PHASE: OCR & Parsing | STATUS: COMPLETED | The ECG Made Easy 8th Edition PDF 8ed 0546.pdf | OCR: Success | Translated: False | Chunks: 396 | Time: 18.9s
+2025-12-03 09:16:37,260 - INFO - PHASE: OCR | STATUS: COMPLETED | 
+2025-12-03 09:16:37,261 - INFO - PHASE: Embedding | STATUS: STARTED | 
+2025-12-03 09:20:13,938 - INFO - PHASE: Embedding | STATUS: COMPLETED | The ECG Made Easy 8th Edition PDF 8ed 0546 | Total Chunks: 396 | Imported: 396 | Failed: 0 | Collection Size: 57118 -> 57503
+2025-12-03 09:20:14,317 - INFO - PHASE: Embedding | STATUS: COMPLETED | 
+2025-12-03 09:20:14,326 - INFO - Cleanup completed for The ECG Made Easy 8th Edition PDF 8ed 0546.pdf
+2025-12-03 09:29:32,225 - INFO - Processing PDF: Lynn S. Bickley - Bates’ Guide to Physical Examination and a5f2.pdf
+2025-12-03 09:29:32,226 - INFO - PHASE: Split | STATUS: STARTED | File: Lynn S. Bickley - Bates’ Guide to Physical Examination and a5f2.pdf
+2025-12-03 09:30:26,898 - INFO - PHASE: Split & Metadata | STATUS: COMPLETED | Lynn S. Bickley - Bates’ Guide to Physical Examination and a5f2.pdf | FileID: 0552ba35... | Exists: False | Collection: Exists/Created | Cleaned Old Points: False
+2025-12-03 09:30:26,902 - INFO - PHASE: Split | STATUS: COMPLETED | Generated 2 files
+2025-12-03 09:30:26,902 - INFO - PHASE: OCR | STATUS: STARTED | Files: 2
+2025-12-03 09:30:59,164 - INFO - PHASE: OCR & Parsing | STATUS: COMPLETED | Lynn S. Bickley - Bates’ Guide to Physical Examination and a5f2(1-600).pdf | OCR: Success | Translated: False | Chunks: 2212 | Time: 24.2s
+2025-12-03 09:31:27,950 - INFO - PHASE: OCR & Parsing | STATUS: COMPLETED | Lynn S. Bickley - Bates’ Guide to Physical Examination and a5f2(601-1066).pdf | OCR: Success | Translated: False | Chunks: 1737 | Time: 21.3s
+2025-12-03 09:31:28,330 - INFO - PHASE: OCR | STATUS: COMPLETED | 
+2025-12-03 09:31:28,332 - INFO - PHASE: Embedding | STATUS: STARTED | 
+2025-12-03 13:57:36,783 - INFO - Processing PDF: Pathophysiology of Disease An Introduction to Clinical 8930.pdf
+2025-12-03 13:57:36,784 - INFO - PHASE: Split | STATUS: STARTED | File: Pathophysiology of Disease An Introduction to Clinical 8930.pdf
+2025-12-03 13:58:07,878 - INFO - PHASE: Split & Metadata | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical 8930.pdf | FileID: fc366e6f... | Exists: False | Collection: Exists/Created | Cleaned Old Points: False
+2025-12-03 13:58:07,881 - INFO - PHASE: Split | STATUS: COMPLETED | Generated 4 files
+2025-12-03 13:58:07,881 - INFO - PHASE: OCR | STATUS: STARTED | Files: 4
+2025-12-03 13:58:54,344 - INFO - PHASE: OCR & Parsing | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical 8930(1-600).pdf | OCR: Success | Translated: False | Chunks: 1836 | Time: 19.5s
+2025-12-03 13:59:57,850 - INFO - PHASE: OCR & Parsing | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical 8930(601-1200).pdf | OCR: Success | Translated: False | Chunks: 1794 | Time: 24.6s
+2025-12-03 14:01:03,819 - INFO - PHASE: OCR & Parsing | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical 8930(1201-1800).pdf | OCR: Success | Translated: False | Chunks: 1929 | Time: 19.5s
+2025-12-03 14:01:36,736 - INFO - PHASE: OCR & Parsing | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical 8930(1801-1875).pdf | OCR: Success | Translated: False | Chunks: 108 | Time: 22.9s
+2025-12-03 14:01:37,115 - INFO - PHASE: OCR | STATUS: COMPLETED | 
+2025-12-03 14:01:37,115 - INFO - PHASE: Embedding | STATUS: STARTED | 
+2025-12-03 14:02:57,110 - INFO - PHASE: Embedding | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical 8930 | Total Chunks: 1836 | Imported: 1836 | Failed: 0 | Collection Size: 58103 -> 59939
+2025-12-03 14:03:49,823 - INFO - PHASE: Embedding | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical 8930 | Total Chunks: 1794 | Imported: 1794 | Failed: 0 | Collection Size: 59939 -> 61733
+2025-12-03 14:04:46,968 - INFO - PHASE: Embedding | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical 8930 | Total Chunks: 1929 | Imported: 1929 | Failed: 0 | Collection Size: 61733 -> 63662
+2025-12-03 14:04:51,169 - INFO - PHASE: Embedding | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical 8930 | Total Chunks: 108 | Imported: 108 | Failed: 0 | Collection Size: 63662 -> 63770
+2025-12-03 14:04:52,287 - INFO - PHASE: Embedding | STATUS: COMPLETED | 
+2025-12-03 14:04:52,314 - INFO - Cleanup completed for Pathophysiology of Disease An Introduction to Clinical 8930.pdf
+2025-12-03 14:14:06,099 - INFO - Processing PDF: Pathophysiology of Disease An Introduction to Clinical 8930.pdf
+2025-12-03 14:14:06,099 - INFO - PHASE: Split | STATUS: STARTED | File: Pathophysiology of Disease An Introduction to Clinical 8930.pdf
+2025-12-03 14:14:33,069 - INFO - PHASE: Split | STATUS: FAILED | No files generated

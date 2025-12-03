@@ -1,0 +1,215 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: "Google Sans", "Inter", Roboto, sans-serif;
+}
+
+:root {
+  /* Default to Dark Theme (Gemini Dark) */
+  --background: #131314;
+  --foreground: #e3e3e3;
+
+  --primary: #dbeafe;
+  --primary-foreground: #000000;
+
+  --secondary: #1e1f20;
+  --secondary-foreground: #e3e3e3;
+
+  --muted: #444746;
+  --muted-foreground: #c4c7c5;
+
+  --accent: #004a77;
+  --accent-foreground: #c2e7ff;
+
+  --border: #444746;
+  --input: #1e1f20;
+  --ring: #a8c7fa;
+}
+
+.light {
+  /* Gemini Light Theme */
+  --background: #ffffff;
+  --foreground: #1f1f1f;
+
+  --primary: #0b57d0;
+  --primary-foreground: #ffffff;
+
+  --secondary: #f0f4f9;
+  --secondary-foreground: #1f1f1f;
+
+  --muted: #e3e3e3;
+  --muted-foreground: #444746;
+
+  --accent: #c2e7ff;
+  --accent-foreground: #001d35;
+
+  --border: #e0e0e0;
+  --input: #f0f4f9;
+  --ring: #0b57d0;
+}
+
+.dark {
+  /* Explicit Dark Theme (Same as root default) */
+  --background: #131314;
+  --foreground: #e3e3e3;
+
+  --primary: #dbeafe;
+  --primary-foreground: #000000;
+
+  --secondary: #1e1f20;
+  --secondary-foreground: #e3e3e3;
+
+  --muted: #444746;
+  --muted-foreground: #c4c7c5;
+
+  --accent: #004a77;
+  --accent-foreground: #c2e7ff;
+
+  --border: #444746;
+  --input: #1e1f20;
+  --ring: #a8c7fa;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Global Minimal Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(155, 155, 155, 0.3);
+  border-radius: 20px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(155, 155, 155, 0.5);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(155, 155, 155, 0.3) transparent;
+}
+
+/* Custom Scrollbar Class (optional refinement) */
+.custom-scrollbar {
+  overflow-y: auto;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(155, 155, 155, 0.2);
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(155, 155, 155, 0.4);
+}
+
+@keyframes progress-indeterminate {
+  0% {
+    transform: translateX(0) scaleX(0);
+  }
+  40% {
+    transform: translateX(0) scaleX(0.4);
+  }
+  100% {
+    transform: translateX(100%) scaleX(0.5);
+  }
+}
+
+.animate-progress-indeterminate {
+  animation: progress-indeterminate 1s infinite linear;
+}
+
+/* From Uiverse.io by Satwinder04 */
+.loader3 {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.circle1 {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin: 0 4px;
+  background-color: #4285f4; /* Default Blue */
+  animation: circle1 1s ease-in-out infinite;
+}
+
+.circle1:nth-child(1) {
+  background-color: #4285f4; /* Blue */
+  animation-delay: 0s;
+}
+
+.circle1:nth-child(2) {
+  background-color: #34a853; /* Green */
+  animation-delay: 0.2s;
+}
+
+.circle1:nth-child(3) {
+  background-color: #fbbc05; /* Yellow */
+  animation-delay: 0.4s;
+}
+
+.circle1:nth-child(4) {
+  background-color: #ea4335; /* Red */
+  animation-delay: 0.6s;
+}
+
+.circle1:nth-child(5) {
+  background-color: #4285f4; /* Blue again */
+  animation-delay: 0.8s;
+}
+
+@keyframes circle1 {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.5);
+    opacity: 0.5;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
