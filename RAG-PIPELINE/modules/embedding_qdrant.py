@@ -29,10 +29,12 @@ class Config:
     QDRANT_BATCH_SIZE = int(os.getenv("QDRANT_BATCH_SIZE", 100))
     PARSED_FOLDER = PIPELINE_ROOT / "database" / "parsed"
     RAW_FOLDER = PIPELINE_ROOT / "database" / "raw"
+    MODELS_DIR = PIPELINE_ROOT / "models"
     
     # Ensure directories exist
     PARSED_FOLDER.mkdir(parents=True, exist_ok=True)
     RAW_FOLDER.mkdir(parents=True, exist_ok=True)
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 class QdrantManager:
     def __init__(self):
@@ -54,7 +56,11 @@ class QdrantManager:
         self.Config = Config
         
         # Initialize BM25 model for sparse vectors
-        self.sparse_model = SparseTextEmbedding(model_name="Qdrant/bm25")
+        # Use local cache to avoid repeated downloads/connection issues
+        self.sparse_model = SparseTextEmbedding(
+            model_name="Qdrant/bm25",
+            cache_dir=str(Config.MODELS_DIR)
+        )
         
     def check_connections(self) -> bool:
         print("[INFO] Checking connections...")
