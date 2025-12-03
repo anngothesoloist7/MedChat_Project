@@ -41,10 +41,11 @@ export async function POST(request: NextRequest) {
     // We'll try 'python' first.
     const pythonScript = join(ragPipelineDir, 'rag-main.py');
     
-    console.log(`Executing: python ${pythonScript} "${filePath}"`);
+    console.log(`Executing: uv run python ${pythonScript} "${filePath}"`);
 
     return new Promise((resolvePromise) => {
-      const pythonProcess = spawn('python', [pythonScript, filePath], {
+      // Use 'uv run' to execute the python script within the project's environment
+      const pythonProcess = spawn('uv', ['run', 'python', pythonScript, filePath], {
         cwd: ragPipelineDir, // Run from rag-pipeline dir so relative paths work
         env: process.env, // Inherit env vars
       });

@@ -38,3 +38,82 @@
 2025-12-03 14:14:06,099 - INFO - Processing PDF: Pathophysiology of Disease An Introduction to Clinical 8930.pdf
 2025-12-03 14:14:06,099 - INFO - PHASE: Split | STATUS: STARTED | File: Pathophysiology of Disease An Introduction to Clinical 8930.pdf
 2025-12-03 14:14:33,069 - INFO - PHASE: Split | STATUS: FAILED | No files generated
+2025-12-03 15:14:51,689 - INFO - Processing PDF: Pathophysiology of Disease An Introduction to Clinical 8930.pdf
+2025-12-03 15:14:51,690 - INFO - PHASE: Split | STATUS: STARTED | File: Pathophysiology of Disease An Introduction to Clinical 8930.pdf
+2025-12-03 15:15:01,743 - INFO - PHASE: Split | STATUS: FAILED | No files generated
+2025-12-03 16:26:37,548 - INFO - Processing PDF: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 16:26:37,548 - INFO - PHASE: Split | STATUS: STARTED | File: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 16:26:46,446 - INFO - PHASE: Split & Metadata | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf | FileID: fc366e6f... | Exists: False | Collection: Error: [ERROR] Missing required API keys in .env | Cleaned Old Points: False
+2025-12-03 16:26:46,446 - INFO - PHASE: Split | STATUS: COMPLETED | Generated 4 files
+2025-12-03 16:26:46,446 - INFO - PHASE: OCR | STATUS: STARTED | Files: 4
+2025-12-03 16:26:46,446 - INFO - PHASE: OCR | STATUS: COMPLETED | 
+2025-12-03 16:26:46,446 - INFO - PHASE: Embedding | STATUS: SKIPPED | Missing chunks for 4 files: ['Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(1-500).pdf', 'Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(501-1000).pdf', 'Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(1001-1500).pdf', 'Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(1501-1875).pdf']. Cannot proceed to Embedding.
+2025-12-03 16:31:03,276 - INFO - Processing PDF: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 16:31:03,276 - INFO - PHASE: Split | STATUS: STARTED | File: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 16:31:11,891 - INFO - PHASE: Split & Metadata | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf | FileID: fc366e6f... | Exists: False | Collection: Error: [ERROR] Missing required API keys in .env | Cleaned Old Points: False
+2025-12-03 16:31:11,891 - INFO - PHASE: Split | STATUS: COMPLETED | Generated 4 files
+2025-12-03 16:31:11,891 - INFO - PHASE: OCR | STATUS: STARTED | Files: 4
+2025-12-03 16:31:11,891 - INFO - PHASE: OCR | STATUS: COMPLETED | 
+2025-12-03 16:31:11,892 - INFO - PHASE: Embedding | STATUS: SKIPPED | Missing chunks for 4 files: ['Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(1-500).pdf', 'Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(501-1000).pdf', 'Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(1001-1500).pdf', 'Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(1501-1875).pdf']. Cannot proceed to Embedding.
+2025-12-03 18:34:15,773 - INFO - Processing PDF: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 18:34:15,773 - INFO - PHASE: Split | STATUS: STARTED | File: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 18:34:23,738 - INFO - PHASE: Split & Metadata | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf | FileID: fc366e6f... | Exists: False | Collection: Error: [ERROR] Missing required API keys in .env | Cleaned Old Points: False
+2025-12-03 18:34:23,738 - INFO - PHASE: Split | STATUS: COMPLETED | Generated 4 files
+2025-12-03 18:34:23,738 - INFO - PHASE: OCR | STATUS: STARTED | Files: 4
+2025-12-03 18:34:23,738 - INFO - PHASE: OCR | STATUS: COMPLETED | 
+2025-12-03 18:34:23,739 - INFO - PHASE: Embedding | STATUS: SKIPPED | Missing chunks for 4 files: ['Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(1-500).pdf', 'Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(501-1000).pdf', 'Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(1001-1500).pdf', 'Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(1501-1875).pdf']. Cannot proceed to Embedding.
+2025-12-03 18:38:21,338 - INFO - Processing PDF: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 18:38:21,338 - INFO - PHASE: Split | STATUS: STARTED | File: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 18:38:29,402 - INFO - PHASE: Split & Metadata | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf | FileID: fc366e6f... | Exists: False | Collection: Error: [ERROR] Missing required API keys in .env | Cleaned Old Points: False
+2025-12-03 18:38:29,402 - INFO - PHASE: Split | STATUS: COMPLETED | Generated 4 files
+2025-12-03 18:38:29,402 - INFO - PHASE: OCR | STATUS: STARTED | Files: 4
+2025-12-03 18:38:29,402 - INFO - PHASE: OCR | STATUS: COMPLETED | 
+2025-12-03 18:38:29,402 - INFO - PHASE: Embedding | STATUS: SKIPPED | Missing chunks for 4 files: ['Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(1-500).pdf', 'Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(501-1000).pdf', 'Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(1001-1500).pdf', 'Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(1501-1875).pdf']. Cannot proceed to Embedding.
+2025-12-03 18:41:12,769 - INFO - Processing PDF: Pathophysiology of Disease An Introduction to Clinical 8930.pdf
+2025-12-03 18:41:12,770 - INFO - PHASE: Split | STATUS: STARTED | File: Pathophysiology of Disease An Introduction to Clinical 8930.pdf
+2025-12-03 18:41:20,388 - INFO - PHASE: Split & Metadata | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical 8930.pdf | FileID: fc366e6f... | Exists: False | Collection: Error: [ERROR] Missing required API keys in .env | Cleaned Old Points: False
+2025-12-03 18:41:20,389 - INFO - PHASE: Split | STATUS: COMPLETED | Generated 4 files
+2025-12-03 18:41:20,389 - INFO - PHASE: OCR | STATUS: STARTED | Files: 4
+2025-12-03 18:41:20,390 - INFO - PHASE: OCR | STATUS: COMPLETED | 
+2025-12-03 18:41:20,391 - INFO - PHASE: Embedding | STATUS: SKIPPED | Missing chunks for 4 files: ['Pathophysiology of Disease An Introduction to Clinical 8930(1-500).pdf', 'Pathophysiology of Disease An Introduction to Clinical 8930(501-1000).pdf', 'Pathophysiology of Disease An Introduction to Clinical 8930(1001-1500).pdf', 'Pathophysiology of Disease An Introduction to Clinical 8930(1501-1875).pdf']. Cannot proceed to Embedding.
+2025-12-03 18:42:35,876 - INFO - Processing PDF: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 18:42:35,876 - INFO - PHASE: Split | STATUS: STARTED | File: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 18:43:11,765 - INFO - PHASE: Split & Metadata | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf | FileID: fc366e6f... | Exists: True | Collection: Exists/Created | Cleaned Old Points: True
+2025-12-03 18:43:11,767 - INFO - PHASE: Split | STATUS: COMPLETED | Generated 4 files
+2025-12-03 18:43:11,767 - INFO - PHASE: OCR | STATUS: SKIPPED | 
+2025-12-03 18:43:11,768 - INFO - PHASE: Embedding | STATUS: SKIPPED | 
+2025-12-03 18:43:56,413 - INFO - Processing PDF: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 18:43:56,413 - INFO - PHASE: Split | STATUS: STARTED | File: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 18:44:28,240 - INFO - PHASE: Split & Metadata | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf | FileID: fc366e6f... | Exists: False | Collection: Exists/Created | Cleaned Old Points: False
+2025-12-03 18:44:28,242 - INFO - PHASE: Split | STATUS: COMPLETED | Generated 4 files
+2025-12-03 18:44:28,242 - INFO - PHASE: OCR | STATUS: STARTED | Files: 4
+2025-12-03 18:44:50,319 - INFO - PHASE: OCR & Parsing | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(1-600).pdf | OCR: Success | Translated: False | Chunks: 1850 | Time: 17.4s
+2025-12-03 18:45:14,102 - INFO - PHASE: OCR & Parsing | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(601-1200).pdf | OCR: Success | Translated: False | Chunks: 1815 | Time: 18.2s
+2025-12-03 18:45:38,307 - INFO - PHASE: OCR & Parsing | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(1201-1800).pdf | OCR: Success | Translated: False | Chunks: 1937 | Time: 19.6s
+2025-12-03 18:45:45,986 - INFO - PHASE: OCR & Parsing | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh(1801-1875).pdf | OCR: Success | Translated: False | Chunks: 108 | Time: 3.5s
+2025-12-03 18:45:46,308 - INFO - PHASE: OCR | STATUS: COMPLETED | 
+2025-12-03 18:45:46,309 - INFO - PHASE: Embedding | STATUS: STARTED | 
+2025-12-03 18:46:38,369 - INFO - PHASE: Embedding | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh | Total Chunks: 1850 | Imported: 1850 | Failed: 0 | Collection Size: 58103 -> 59953
+2025-12-03 18:47:32,322 - INFO - PHASE: Embedding | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh | Total Chunks: 1815 | Imported: 1815 | Failed: 0 | Collection Size: 59953 -> 61768
+2025-12-03 18:48:29,452 - INFO - PHASE: Embedding | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh | Total Chunks: 1937 | Imported: 1937 | Failed: 0 | Collection Size: 61768 -> 63705
+2025-12-03 18:48:33,717 - INFO - PHASE: Embedding | STATUS: COMPLETED | Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPh | Total Chunks: 108 | Imported: 108 | Failed: 0 | Collection Size: 63705 -> 63813
+2025-12-03 18:48:34,527 - INFO - PHASE: Embedding | STATUS: COMPLETED | 
+2025-12-03 18:57:46,157 - INFO - Processing PDF: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 18:57:46,158 - INFO - Phase 1: Splitting...
+2025-12-03 18:57:46,158 - INFO - PHASE: Split | STATUS: STARTED | File: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 19:02:48,213 - INFO - Processing PDF: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 19:02:48,213 - INFO - Phase 1: Splitting...
+2025-12-03 19:02:48,213 - INFO - PHASE: Split | STATUS: STARTED | File: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 19:02:52,563 - ERROR - PHASE: Split | STATUS: ERROR | PDF 'Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf' already exists in Qdrant.
+2025-12-03 19:05:27,319 - INFO - Processing PDF: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 19:05:27,319 - INFO - Phase 1: Splitting...
+2025-12-03 19:05:27,319 - INFO - PHASE: Split | STATUS: STARTED | File: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 19:05:53,976 - ERROR - PHASE: Split | STATUS: ERROR | PDF 'Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf' already exists in Qdrant.
+2025-12-03 19:09:55,832 - INFO - Processing PDF: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 19:09:55,834 - INFO - Phase 1: Splitting...
+2025-12-03 19:09:55,834 - INFO - PHASE: Split | STATUS: STARTED | File: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 19:10:00,994 - ERROR - PHASE: Split | STATUS: ERROR | PDF 'Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf' already exists in Qdrant.
+2025-12-03 19:14:15,290 - INFO - Processing PDF: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 19:14:15,290 - INFO - Phase 1: Splitting...
+2025-12-03 19:14:15,290 - INFO - PHASE: Split | STATUS: STARTED | File: Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf
+2025-12-03 19:14:20,129 - ERROR - PHASE: Split | STATUS: ERROR | PDF 'Pathophysiology of Disease An Introduction to Clinical Medicine (Gary D. Hammer, Stephen J. McPhee) (z-lib.org).pdf' already exists in Qdrant.

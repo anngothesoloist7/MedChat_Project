@@ -9,12 +9,13 @@ from dotenv import load_dotenv
 from qdrant_client import QdrantClient, models
 from tqdm import tqdm
 from fastembed import SparseTextEmbedding
+from modules.utils.pipeline_logger import pipeline_logger
 
 # Load environment variables
-# Load environment variables
+# Load environment variables from project root
 base_path = Path(__file__).resolve().parent.parent
-env_path = base_path / ".env.local"
-load_dotenv(env_path if env_path.exists() else base_path / ".env")
+env_path = base_path / ".env"
+load_dotenv(env_path)
 
 class Config:
     BASE_DIR = Path(os.getenv("BASE_DIR", os.getcwd()))
@@ -241,6 +242,7 @@ class QdrantManager:
         book_meta = self.load_metadata(path.stem.replace("_chunks", ""))
         total = len(chunks)
         print(f"[INFO] Indexing {total:,} chunks (Batch: {Config.GEMINI_BATCH_SIZE})...")
+        pipeline_logger.log_info(f"Indexing {total:,} chunks (Batch: {Config.GEMINI_BATCH_SIZE})...")
         
         # Get collection size before
         try:
@@ -299,4 +301,5 @@ def run_embedding(files: List[str]):
 
     if processed_files:
         from modules.utils.qdrant_verifier import verify_and_retry_indexing
+        pipeline_logger.log_info("VERIFY: Starting verification...")
         verify_and_retry_indexing(manager, processed_files, log_dir=str(Config.PIPELINE_ROOT / "logs"))

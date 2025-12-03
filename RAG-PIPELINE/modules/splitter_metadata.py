@@ -8,11 +8,12 @@ from pypdf import PdfReader, PdfWriter
 from dotenv import load_dotenv
 from mistralai import Mistral, DocumentURLChunk
 from mistralai import Mistral, DocumentURLChunk
+from modules.utils.pipeline_logger import pipeline_logger
 
-# Load environment variables (prioritize .env.local)
+# Load environment variables from project root
 base_path = Path(__file__).resolve().parent.parent
-env_path = base_path / ".env.local"
-load_dotenv(env_path if env_path.exists() else base_path / ".env")
+env_path = base_path / ".env"
+load_dotenv(env_path)
 
 try:
     import pypdfium2 as pdfium
@@ -82,6 +83,7 @@ class PDFProcessor:
                 with open(out_path, 'wb') as f: writer.write(f)
                 output_files.append(out_path)
                 print(f"[SUCCESS] Created: {fname}")
+                pipeline_logger.log_info(f"Created: {fname}")
             except Exception as e:
                 print(f"[ERROR] pypdf failed for {fname}: {e}")
                 if HAS_PDFIUM and self._fallback_pdfium(input_path, out_path, start, end):
@@ -108,6 +110,7 @@ class PDFProcessor:
 
 def extract_metadata(file_path: Path, pdf_id: str = None):
     print(f"\n[INFO] Extracting metadata: {file_path.name}")
+    pipeline_logger.log_info(f"Extracting metadata: {file_path.name}")
     if not Config.MISTRAL_API_KEY or not Config.GOOGLE_API_KEY:
         return print("[ERROR] Missing API keys.")
 
@@ -182,7 +185,42 @@ def extract_metadata(file_path: Path, pdf_id: str = None):
     finally: 
         if temp_pdf.exists(): os.remove(temp_pdf)
 
-def run_splitter(input_path_str: str) -> List[str]:
+def check_qdrant_existence(pdf_path: Path) -> dict:
+    """Checks if the PDF already exists in Qdrant."""
+    from modules.utils.hash_utils import get_file_id
+    from modules.embedding_qdrant import QdrantManager
+    from qdrant_client import models
+    
+    # Ensure raw file exists for hash calculation
+    # If checking from a temp location, we might need to handle that, 
+    # but here we assume the file is at pdf_path.
+    
+    pdf_id = get_file_id(str(pdf_path))
+    
+    try:
+        q_manager = QdrantManager()
+        if not q_manager.check_connections():
+            return {"exists": False, "error": "Connection failed"}
+            
+        q_manager.init_collection()
+        
+        count_res = q_manager.qdrant_client.count(
+            collection_name=q_manager.Config.COLLECTION_NAME,
+            count_filter=models.Filter(
+                must=[models.FieldCondition(key="pdf_id", match=models.MatchValue(value=pdf_id))]
+            )
+        )
+        
+        return {
+            "exists": count_res.count > 0, 
+            "count": count_res.count, 
+            "pdf_id": pdf_id,
+            "collection_name": q_manager.Config.COLLECTION_NAME
+        }
+    except Exception as e:
+        return {"exists": False, "error": str(e)}
+
+def run_splitter(input_path_str: str, overwrite: bool = False) -> List[str]:
     Config.RAW_FOLDER.mkdir(parents=True, exist_ok=True)
     Config.SPLITTED_FOLDER.mkdir(parents=True, exist_ok=True)
     path = Path(input_path_str)
@@ -210,54 +248,45 @@ def run_splitter(input_path_str: str) -> List[str]:
         shutil.copy2(path, raw_path)
         print(f"[INFO] Saved to raw: {raw_path}")
 
-    # Calculate PDF hash
-    from modules.utils.hash_utils import get_file_id
-    pdf_id = get_file_id(str(raw_path))
-    print(f"[INFO] PDF Hash (ID): {pdf_id}")
-    
-    # Check and delete existing points in Qdrant
+    # Check Qdrant
+    q_check = check_qdrant_existence(raw_path)
+    pdf_id = q_check.get("pdf_id", "unknown")
     points_deleted = False
     collection_status = "Unknown"
     
-    try:
-        from modules.embedding_qdrant import QdrantManager
-        from qdrant_client import models
+    if q_check.get("error"):
+        print(f"[WARN] Qdrant check failed: {q_check['error']}")
+        collection_status = f"Error: {q_check['error'][:50]}"
+    elif q_check["exists"]:
+        print(f"[WARN] Found {q_check['count']} existing points.")
+        collection_status = "Exists"
         
-        q_manager = QdrantManager()
-        if q_manager.check_connections():
-            q_manager.init_collection()
-            collection_status = "Exists/Created"
+        if not overwrite:
+            print(f"[WARN] PDF '{path.name}' already exists in DB. Skipping (overwrite=False).")
+            # We raise an error so the caller knows it was skipped due to existence
+            # Or we can return empty list, but raising is more explicit for the API to handle "Ask User"
+            raise FileExistsError(f"PDF '{path.name}' already exists in Qdrant.")
             
-            print(f"[INFO] Checking for existing points with pdf_id: {pdf_id}...")
-            count_res = q_manager.qdrant_client.count(
+        print(f"[INFO] Overwriting... Deleting existing points...")
+        try:
+            from modules.embedding_qdrant import QdrantManager
+            from qdrant_client import models
+            q_manager = QdrantManager()
+            q_manager.qdrant_client.delete(
                 collection_name=q_manager.Config.COLLECTION_NAME,
-                count_filter=models.Filter(
-                    must=[models.FieldCondition(key="pdf_id", match=models.MatchValue(value=pdf_id))]
-                )
-            )
-            
-            if count_res.count > 0:
-                print(f"[WARN] Found {count_res.count} existing points.")
-                if input(f"PDF '{path.name}' already exists in DB. Overwrite? (y/n): ").strip().lower() != 'y':
-                    print("[INFO] Skipped by user.")
-                    return []
-
-                print(f"[INFO] Deleting existing points...")
-                q_manager.qdrant_client.delete(
-                    collection_name=q_manager.Config.COLLECTION_NAME,
-                    points_selector=models.FilterSelector(
-                        filter=models.Filter(
-                            must=[models.FieldCondition(key="pdf_id", match=models.MatchValue(value=pdf_id))]
-                        )
+                points_selector=models.FilterSelector(
+                    filter=models.Filter(
+                        must=[models.FieldCondition(key="pdf_id", match=models.MatchValue(value=pdf_id))]
                     )
                 )
-                print("[SUCCESS] Deleted existing points.")
-                points_deleted = True
-            else:
-                print("[INFO] No existing points found.")
-    except Exception as e:
-        print(f"[WARN] Qdrant check failed: {e}")
-        collection_status = f"Error: {str(e)[:50]}"
+            )
+            print("[SUCCESS] Deleted existing points.")
+            points_deleted = True
+        except Exception as e:
+            print(f"[ERROR] Failed to delete points: {e}")
+    else:
+        print("[INFO] No existing points found.")
+        collection_status = "New"
 
     extract_metadata(raw_path, pdf_id)
     proc = PDFProcessor()
@@ -265,6 +294,7 @@ def run_splitter(input_path_str: str) -> List[str]:
     print(f"\n[INFO] {info['name']} | {info['size_mb']:.2f}MB | {info['pages']} pages | {info['chunks']} chunks")
     
     print("[INFO] Splitting...")
+    pipeline_logger.log_info("Splitting...")
     split_files = proc.split_pdf(raw_path, Config.SPLITTED_FOLDER)
     print(f"[INFO] Done! Saved in: {Config.SPLITTED_FOLDER}")
     
@@ -273,7 +303,7 @@ def run_splitter(input_path_str: str) -> List[str]:
     pipeline_logger.log_phase_1(
         pdf_name=path.name,
         file_id=pdf_id,
-        exists=(points_deleted), # If points were deleted, it existed
+        exists=(points_deleted or q_check["exists"]), 
         collection_status=collection_status,
         points_deleted=points_deleted
     )

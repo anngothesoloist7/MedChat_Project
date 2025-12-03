@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { MessageBubble, Message } from '@/components/MessageBubble';
 import { InputArea, InputAreaRef } from '@/components/InputArea';
-import { PatientCard } from '@/components/PatientCard';
+import { DocumentCard } from '@/components/DocumentCard';
 import { Loader2, Gem, ChevronDown, Menu } from 'lucide-react';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
@@ -13,7 +13,7 @@ import { createClient } from '@/utils/supabase/client';
 import { useSettings } from '@/context/SettingsContext';
 import { getDeviceId } from '@/utils/device';
 
-import { DeepResearchIndicator, ResearchStage } from '@/components/DeepResearchIndicator';
+import RagPipelineVisualizer from '@/components/RagPipelineVisualizer';
 
 type EhrPhase = 'idle' | 'submitting' | 'polling' | 'refining' | 'summary' | 'chatting';
 
@@ -43,6 +43,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [patientData, setPatientData] = useState<any>(null);
   const [ehrPhase, setEhrPhase] = useState<EhrPhase>('idle');
+  const [ragPhase, setRagPhase] = useState<number>(1); // 1, 2, 3
   const [sessionId, setSessionId] = useState(uuidv4()); 
   const [pollIntervalId, setPollIntervalId] = useState<NodeJS.Timeout | null>(null);
   const [chatTitle, setChatTitle] = useState("New Chat");
@@ -277,14 +278,14 @@ export default function Home() {
 
     setEhrPhase('submitting');
     setIsLoading(true);
+    setRagPhase(1); // Reset to phase 1
 
     try {
       const formData = new FormData();
       // patientData is the File object from FileDropzone
       formData.append('file', patientData);
 
-      addMessage('assistant', t('analysis_started'));
-
+      // Start the pipeline
       const response = await axios.post('/api/rag/process', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -292,11 +293,60 @@ export default function Home() {
       });
 
       if (response.data.success) {
-        addMessage('assistant', t('upload_success'));
-        if (response.data.logs) {
-           console.log("RAG Logs:", response.data.logs);
-        }
-        setEhrPhase('chatting');
+        setEhrPhase('polling');
+        
+        // Start polling for status
+        const interval = setInterval(async () => {
+            try {
+                const res = await fetch('http://localhost:8000/status?limit=50');
+                const data = await res.json();
+                const logs = data.logs || [];
+                
+                // Check logs for phase updates
+                // We assume we are processing the file we just uploaded
+                // Simple logic: look for the latest phase in logs
+                let currentPhase = 1;
+                let isComplete = false;
+                
+                // Reverse logs to find latest events first
+                const reversedLogs = [...logs].reverse();
+                
+                for (const log of reversedLogs) {
+                    if (log.includes("PHASE: Embedding") && log.includes("COMPLETED")) {
+                        isComplete = true;
+                        currentPhase = 3;
+                        break;
+                    }
+                    if (log.includes("PHASE: Embedding") && log.includes("STARTED")) {
+                        currentPhase = 3;
+                        break;
+                    }
+                    if (log.includes("PHASE: OCR") && log.includes("STARTED")) {
+                        currentPhase = 2;
+                        break;
+                    }
+                    if (log.includes("PHASE: Split") && log.includes("STARTED")) {
+                        currentPhase = 1;
+                        break;
+                    }
+                }
+                
+                setRagPhase(currentPhase);
+                
+                if (isComplete) {
+                    clearInterval(interval);
+                    setPollIntervalId(null);
+                    setEhrPhase('chatting');
+                    setIsLoading(false);
+                }
+                
+            } catch (e) {
+                console.error("Polling error:", e);
+            }
+        }, 1000);
+        
+        setPollIntervalId(interval);
+
       } else {
         throw new Error(response.data.error || 'Unknown error');
       }
@@ -305,7 +355,6 @@ export default function Home() {
       console.error(error);
       addMessage('assistant', t('upload_fail'));
       setEhrPhase('idle');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -331,7 +380,7 @@ export default function Home() {
         deviceId: getDeviceId()
       };
 
-      if (activeTab === 'ehr') {
+      if (activeTab === 'ehr' && ehrPhase !== 'chatting') {
         payload.recordInfo = text;
       } else {
         payload.chatInput = text;
@@ -514,7 +563,7 @@ export default function Home() {
             )}
 
               {activeTab === 'ehr' && (patientData || messages.length === 0) && (
-                <PatientCard 
+                <DocumentCard 
                   data={patientData} 
                   onFileLoaded={handleFileLoaded} 
                   onAnalyze={handleAnalyze}
@@ -528,9 +577,11 @@ export default function Home() {
                 />
               )}
 
-              {/* Deep Research Indicator */}
-              {activeTab === 'ehr' && (ehrPhase === 'submitting' || ehrPhase === 'polling' || ehrPhase === 'refining') && (
-                 <DeepResearchIndicator stage={ehrPhase === 'submitting' ? 'uploading' : ehrPhase === 'polling' ? 'analyzing' : 'refining'} />
+              {/* RAG Pipeline Visualizer */}
+              {activeTab === 'ehr' && (ehrPhase === 'submitting' || ehrPhase === 'polling') && (
+                 <div className="mb-8 flex justify-center w-full">
+                    <RagPipelineVisualizer currentPhase={ragPhase} isLoading={ehrPhase === 'polling' || ehrPhase === 'submitting'} />
+                 </div>
               )}
 
             {messages.length === 0 && !patientData && activeTab === 'chat' && !isSessionLoading && (
@@ -602,8 +653,8 @@ export default function Home() {
             ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" 
             : "absolute bottom-0 left-1/2 -translate-x-1/2 bg-background pb-2 pt-2"
         )}>
-          {/* Only show input area if NOT in EHR/Knowledge Base mode */}
-          {activeTab !== 'ehr' && (
+          {/* Only show input area if NOT in EHR/Knowledge Base mode OR if we are in chatting phase */}
+          {(activeTab !== 'ehr' || ehrPhase === 'chatting') && (
             <InputArea 
               ref={inputAreaRef}
               onSend={handleSendMessage} 

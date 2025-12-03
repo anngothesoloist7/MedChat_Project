@@ -8,19 +8,17 @@ wheels/
 
 # Virtual environments
 .venv
-.env
-.env.local
+#.env
 
 #=== Rag Pipeline ===#
 
 # Logs
-RAG-PIPELINE/logs/*
+logs/*
 
 # Database
-RAG-PIPELINE/database/raw/*
-RAG-PIPELINE/database/splitted/*
-RAG-PIPELINE/database/parsed/*
-docs
+database/raw/*
+database/splitted/*
+database/parsed/*
 
 # BM25 Model
 models
