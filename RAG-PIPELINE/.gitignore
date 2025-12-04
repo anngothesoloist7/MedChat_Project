@@ -8,25 +8,22 @@ wheels/
 
 # Virtual environments
 .venv
-#.env
+.env
+.vscode
 
 #=== Rag Pipeline ===#
 
 # Logs
-logs/*
+logs/*.log
 
 # Database
-<<<<<<< HEAD:.gitignore
-RAG-PIPELINE/database/raw/*
-RAG-PIPELINE/database/splitted/*
-RAG-PIPELINE/database/parsed/*
 docs
-.vscode
-=======
-database/raw/*
-database/splitted/*
-database/parsed/*
+database/raw/*.pdf
+database/raw/*.json
+database/splitted/*.pdf
+database/parsed/*.md
+database/parsed/*.json
 
 # BM25 Model
-models
->>>>>>> ad0a7584a01d8bbc20df184ea9f398f8eb3f56aa:RAG-PIPELINE/.gitignore
+models/.locks
+models/models--Qdrant--bm25

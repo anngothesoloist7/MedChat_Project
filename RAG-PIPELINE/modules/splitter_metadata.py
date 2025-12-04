@@ -5,38 +5,15 @@ import re
 from pathlib import Path
 from typing import List, Tuple
 from pypdf import PdfReader, PdfWriter
-from dotenv import load_dotenv
-from mistralai import Mistral, DocumentURLChunk
 from mistralai import Mistral, DocumentURLChunk
 from modules.utils.pipeline_logger import pipeline_logger
-
-# Load environment variables from project root
-base_path = Path(__file__).resolve().parent.parent
-env_path = base_path / ".env"
-load_dotenv(env_path)
+from modules.config import Config
 
 try:
     import pypdfium2 as pdfium
     HAS_PDFIUM = True
 except ImportError:
     HAS_PDFIUM = False
-
-class Config:
-    TARGET_CHUNK_SIZE = int(os.getenv('TARGET_CHUNK_SIZE_MB', 50)) * 1024 * 1024
-    MAX_PAGES = int(os.getenv('MAX_PAGES', 500))
-    BASE_DIR = Path(os.getenv("BASE_DIR", os.getcwd()))
-    PIPELINE_ROOT = BASE_DIR
-
-    RAW_FOLDER = PIPELINE_ROOT / "database" / "raw"
-    SPLITTED_FOLDER = PIPELINE_ROOT / "database" / "splitted"
-    
-    # Ensure directories exist
-    RAW_FOLDER.mkdir(parents=True, exist_ok=True)
-    SPLITTED_FOLDER.mkdir(parents=True, exist_ok=True)
-    MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
-    GOOGLE_API_KEY = os.getenv("GOOGLE_CHAT_API_KEY")
-    MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-ocr-latest")
-    GEMINI_MODEL = os.getenv("GEMINI_METADATA_MODEL", "gemini-pro-latest")
 
 class PDFProcessor:
     def __init__(self):
@@ -111,10 +88,10 @@ class PDFProcessor:
 def extract_metadata(file_path: Path, pdf_id: str = None):
     print(f"\n[INFO] Extracting metadata: {file_path.name}")
     pipeline_logger.log_info(f"Extracting metadata: {file_path.name}")
-    if not Config.MISTRAL_API_KEY or not Config.GOOGLE_API_KEY:
+    if not Config.MISTRAL_API_KEY or not Config.GOOGLE_CHAT_API_KEY:
         return print("[ERROR] Missing API keys.")
 
-    temp_pdf = Config.RAW_FOLDER / f"temp_meta_{file_path.name}"
+    temp_pdf = Config.RAW_DIR / f"temp_meta_{file_path.name}"
     try:
         reader = PdfReader(str(file_path))
         writer = PdfWriter()
@@ -134,7 +111,6 @@ def extract_metadata(file_path: Path, pdf_id: str = None):
         client.files.delete(file_id=upload.id)
         
         full_text = "\n\n".join([p.markdown for p in ocr.pages])
-        full_text = "\n\n".join([p.markdown for p in ocr.pages])
         print("[INFO] Gemini Analysis with Google Search...")
         
         prompt_path = Config.BASE_DIR / "prompts" / "metadata_extract_prompt.md"
@@ -143,41 +119,28 @@ def extract_metadata(file_path: Path, pdf_id: str = None):
         from google import genai
         from google.genai import types
         
-        client = genai.Client(api_key=Config.GOOGLE_API_KEY)
-        
-        # Combine prompt and text
+        client = genai.Client(api_key=Config.GOOGLE_CHAT_API_KEY)
         prompt_content = prompt_path.read_text(encoding="utf-8")
         full_prompt = f"{prompt_content}\n\nTEXT CONTENT:\n{full_text[:50000]}"
         
-        # Generate with Google Search Grounding
         response = client.models.generate_content(
-            model=Config.GEMINI_MODEL,
-            contents=[
-                types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(text=full_prompt)]
-                )
-            ],
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())]
-            )
+            model=Config.GEMINI_METADATA_MODEL,
+            contents=[types.Content(role="user", parts=[types.Part.from_text(text=full_prompt)])],
+            config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())])
         )
         
         meta_json_str = response.text.strip()
         if "```" in meta_json_str: meta_json_str = meta_json_str.split("```json")[-1].split("```")[0].strip()
         
-        # Parse and add pdf_id
         try:
             meta_data = json.loads(meta_json_str)
-            if pdf_id:
-                meta_data["pdf_id"] = pdf_id
+            if pdf_id: meta_data["pdf_id"] = pdf_id
             meta_json = json.dumps(meta_data, indent=2, ensure_ascii=False)
         except Exception:
-            # Fallback if JSON parsing fails, just save string (though pdf_id won't be added cleanly)
             print("[WARN] Failed to parse metadata JSON, saving raw string.")
             meta_json = meta_json_str
             
-        meta_path = Config.RAW_FOLDER / f"{file_path.stem}_metadata.json"
+        meta_path = Config.RAW_DIR / f"{file_path.stem}_metadata.json"
         meta_path.write_text(meta_json, encoding="utf-8")
         print(f"[SUCCESS] Metadata saved: {meta_path.name}")
         
@@ -186,43 +149,26 @@ def extract_metadata(file_path: Path, pdf_id: str = None):
         if temp_pdf.exists(): os.remove(temp_pdf)
 
 def check_qdrant_existence(pdf_path: Path) -> dict:
-    """Checks if the PDF already exists in Qdrant."""
     from modules.utils.hash_utils import get_file_id
     from modules.embedding_qdrant import QdrantManager
     from qdrant_client import models
     
-    # Ensure raw file exists for hash calculation
-    # If checking from a temp location, we might need to handle that, 
-    # but here we assume the file is at pdf_path.
-    
     pdf_id = get_file_id(str(pdf_path))
-    
     try:
         q_manager = QdrantManager()
-        if not q_manager.check_connections():
-            return {"exists": False, "error": "Connection failed"}
-            
+        if not q_manager.check_connections(): return {"exists": False, "error": "Connection failed"}
         q_manager.init_collection()
         
         count_res = q_manager.qdrant_client.count(
             collection_name=q_manager.Config.COLLECTION_NAME,
-            count_filter=models.Filter(
-                must=[models.FieldCondition(key="pdf_id", match=models.MatchValue(value=pdf_id))]
-            )
+            count_filter=models.Filter(must=[models.FieldCondition(key="pdf_id", match=models.MatchValue(value=pdf_id))])
         )
-        
-        return {
-            "exists": count_res.count > 0, 
-            "count": count_res.count, 
-            "pdf_id": pdf_id,
-            "collection_name": q_manager.Config.COLLECTION_NAME
-        }
-    except Exception as e:
-        return {"exists": False, "error": str(e)}
+        return {"exists": count_res.count > 0, "count": count_res.count, "pdf_id": pdf_id, "collection_name": q_manager.Config.COLLECTION_NAME}
+    except Exception as e: return {"exists": False, "error": str(e)}
 
 def run_splitter(input_path_str: str, overwrite: bool = False) -> List[str]:
-    Config.RAW_FOLDER.mkdir(parents=True, exist_ok=True)
-    Config.SPLITTED_FOLDER.mkdir(parents=True, exist_ok=True)
+    Config.RAW_DIR.mkdir(parents=True, exist_ok=True)
+    Config.SPLITTED_DIR.mkdir(parents=True, exist_ok=True)
     path = Path(input_path_str)
     
     if not path.exists() or path.suffix.lower() != '.pdf':
@@ -231,11 +177,8 @@ def run_splitter(input_path_str: str, overwrite: bool = False) -> List[str]:
 
     print(f"[INFO] Processing: {path.name}")
     
-    # Sanitize filename to avoid path length issues
     def sanitize_filename(name: str, max_length: int = 100) -> str:
-        # Remove invalid chars
         name = re.sub(r'[<>:"/\\|?*]', '', name)
-        # Truncate if too long (preserve extension)
         if len(name) > max_length:
             stem = Path(name).stem
             suffix = Path(name).suffix
@@ -243,12 +186,11 @@ def run_splitter(input_path_str: str, overwrite: bool = False) -> List[str]:
         return name
 
     safe_name = sanitize_filename(path.name)
-    raw_path = Config.RAW_FOLDER / safe_name
+    raw_path = Config.RAW_DIR / safe_name
     if path.resolve() != raw_path.resolve():
         shutil.copy2(path, raw_path)
         print(f"[INFO] Saved to raw: {raw_path}")
 
-    # Check Qdrant
     q_check = check_qdrant_existence(raw_path)
     pdf_id = q_check.get("pdf_id", "unknown")
     points_deleted = False
@@ -260,11 +202,8 @@ def run_splitter(input_path_str: str, overwrite: bool = False) -> List[str]:
     elif q_check["exists"]:
         print(f"[WARN] Found {q_check['count']} existing points.")
         collection_status = "Exists"
-        
         if not overwrite:
             print(f"[WARN] PDF '{path.name}' already exists in DB. Skipping (overwrite=False).")
-            # We raise an error so the caller knows it was skipped due to existence
-            # Or we can return empty list, but raising is more explicit for the API to handle "Ask User"
             raise FileExistsError(f"PDF '{path.name}' already exists in Qdrant.")
             
         print(f"[INFO] Overwriting... Deleting existing points...")
@@ -275,15 +214,12 @@ def run_splitter(input_path_str: str, overwrite: bool = False) -> List[str]:
             q_manager.qdrant_client.delete(
                 collection_name=q_manager.Config.COLLECTION_NAME,
                 points_selector=models.FilterSelector(
-                    filter=models.Filter(
-                        must=[models.FieldCondition(key="pdf_id", match=models.MatchValue(value=pdf_id))]
-                    )
+                    filter=models.Filter(must=[models.FieldCondition(key="pdf_id", match=models.MatchValue(value=pdf_id))])
                 )
             )
             print("[SUCCESS] Deleted existing points.")
             points_deleted = True
-        except Exception as e:
-            print(f"[ERROR] Failed to delete points: {e}")
+        except Exception as e: print(f"[ERROR] Failed to delete points: {e}")
     else:
         print("[INFO] No existing points found.")
         collection_status = "New"
@@ -295,17 +231,11 @@ def run_splitter(input_path_str: str, overwrite: bool = False) -> List[str]:
     
     print("[INFO] Splitting...")
     pipeline_logger.log_info("Splitting...")
-    split_files = proc.split_pdf(raw_path, Config.SPLITTED_FOLDER)
-    print(f"[INFO] Done! Saved in: {Config.SPLITTED_FOLDER}")
+    split_files = proc.split_pdf(raw_path, Config.SPLITTED_DIR)
+    print(f"[INFO] Done! Saved in: {Config.SPLITTED_DIR}")
     
-    # Enhanced Logging
-    from modules.utils.pipeline_logger import pipeline_logger
     pipeline_logger.log_phase_1(
-        pdf_name=path.name,
-        file_id=pdf_id,
-        exists=(points_deleted or q_check["exists"]), 
-        collection_status=collection_status,
-        points_deleted=points_deleted
+        pdf_name=path.name, file_id=pdf_id, exists=(points_deleted or q_check["exists"]), 
+        collection_status=collection_status, points_deleted=points_deleted
     )
-    
     return [str(p) for p in split_files]
