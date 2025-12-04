@@ -1,10 +1,14 @@
+# =========================
+# IMPORT DEPENDENCIES
+# =========================
+
 import streamlit as st
 import os
 import tempfile
 import base64
 import shutil
 
-# --- Funtions from medical_rag.py ----
+# --- Import core RAG functions from medical_rag.py ---
 from medical_rag import (
     process_medical_document, 
     create_vectorstore, 
@@ -12,8 +16,12 @@ from medical_rag import (
     generate_response
 )
 
+# =========================
+# SESSION STATE INITIALIZATION
+# =========================
+
 def initialize_session_state():
-    """Initialize session state variables"""
+    """Initialize Streamlit session state variables."""
     if 'processing_complete' not in st.session_state:
         st.session_state.processing_complete = False
     if 'chat_history' not in st.session_state:
@@ -21,17 +29,21 @@ def initialize_session_state():
     if 'vectorstore' not in st.session_state:
         st.session_state.vectorstore = None
 
+# =========================
+# PDF PREVIEW FUNCTION
+# =========================
+
 def display_pdf(uploaded_file):
     """
-    Display a PDF file that has been uploaded to Streamlit.
+    Display an uploaded PDF file inside the Streamlit interface.
     """
-    # Read the PDF file
+    # Read binary content of the PDF
     pdf_bytes = uploaded_file.getvalue()
     
-    # Convert to base64
+    # Convert PDF to Base64 format
     base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
     
-    # Create PDF display HTML
+    # Create HTML iframe for displaying the PDF
     pdf_display = f"""
     <iframe 
         src="data:application/pdf;base64,{base64_pdf}" 
@@ -43,12 +55,17 @@ def display_pdf(uploaded_file):
     </iframe>
     """
     
-    # Display the PDF
+    # Render the PDF in Streamlit
     st.markdown(pdf_display, unsafe_allow_html=True)
 
+# =========================
+# MAIN STREAMLIT APPLICATION
+# =========================
+
 def main():
-    """Main Streamlit application"""
-    # Page configuration
+    """Main Streamlit application for Medical RAG Assistant."""
+    
+    # Page layout configuration
     st.set_page_config(
         page_title="Medical RAG Assistant",
         page_icon="🩺",
@@ -56,9 +73,10 @@ def main():
         initial_sidebar_state="collapsed"
     )
     
-    # Initialize session state
+    # Initialize session variables
     initialize_session_state()
     
+    # Title and project description
     st.title("🩺 Medchat: AI for Medical Students")
     st.markdown("""
     **Medchat** is a specialized Data Science project designed to support medical students. 
@@ -66,13 +84,17 @@ def main():
     Unlike generic AI, Medchat prioritizes accuracy and traceability to ensure reliable clinical information.
     """)
     
-    # Create two columns
+    # Create two-column layout
     col1, col2 = st.columns([1, 1])
     
+    # =========================
+    # LEFT PANEL: CONFIGURATION & DOCUMENT PROCESSING
+    # =========================
+
     with col1:
         st.header("🔑 API Configuration")       
         
-        # API key input
+        # Input field for Gemini API Key
         gemini_key = st.text_input(
             "Gemini API Key:",
             type="password",
@@ -81,6 +103,7 @@ def main():
             key="gemini_key_input"
         )
         
+        # Input field for Mistral API Key
         mistral_key = st.text_input(
             "Mistral API Key:",
             type="password", 
@@ -89,19 +112,20 @@ def main():
             key="mistral_key_input"
         )
         
-       # Set Environment Variables Immediately
+        # Store API keys as environment variables at runtime
         if gemini_key: os.environ['GEMINI_API_KEY'] = gemini_key
         if mistral_key: os.environ['MISTRAL_API_KEY'] = mistral_key
         
         st.header("📁 Document Upload")
         
-        # File uploader
+        # File uploader for medical PDF documents
         uploaded_file = st.file_uploader(
             "Choose a medical PDF file",
             type="pdf",
             help="Upload medical textbooks, research papers, or clinical guidelines."
         )
 
+        # Button to trigger document processing
         process_clicked = st.button(
                 "🚀 Process Document", 
                 type="primary",
@@ -109,34 +133,39 @@ def main():
                 key="process_btn"
             )
         
+        # Execute document processing pipeline
         if uploaded_file and process_clicked:
             if not gemini_key or not mistral_key:
                 st.error("Please enter both API keys.")
                 return
 
+            # Display document preview
             st.header("📄 Document Preview")
             display_pdf(uploaded_file)
 
             with st.spinner("Processing..."):
-                # 1. Create Temp File
+                # 1. Save uploaded file as a temporary PDF
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
                     tmp_file.write(uploaded_file.getvalue())
                     tmp_path = tmp_file.name
                 
-                # 2. Process (File is closed now, safe to use)
+                # 2. Run OCR + text extraction + chunking pipeline
                 try:
                     chunks = process_medical_document(tmp_path)
                     
                     if chunks:
-                        # Create Vector Store
+                        # Create embedding function
                         emb_fn = get_embedding_function()
-                        # Use a temp dir for Chroma to avoid locks
+                        
+                        # Use temporary storage for Chroma vector database
                         db_path = os.path.join(tempfile.gettempdir(), "medical_chroma_db")
 
+                        # Remove old database to avoid conflicts
                         if os.path.exists(db_path):
                             shutil.rmtree(db_path)
                             print(f"🧹 Cleared old database at {db_path}")
                         
+                        # Create vector store from chunks
                         vectorstore = create_vectorstore(chunks, emb_fn, db_path)
                         st.session_state.vectorstore = vectorstore
                         st.session_state.processing_complete = True
@@ -147,9 +176,13 @@ def main():
                 except Exception as e:
                     st.error(f"Error: {e}")
                 finally:
-                    # Cleanup
+                    # Remove temporary file after processing
                     if os.path.exists(tmp_path):
                         os.remove(tmp_path)
+
+    # =========================
+    # RIGHT PANEL: MEDICAL Q&A INTERFACE
+    # =========================
 
     with col2:
         st.header("💬 Medical Q&A")
@@ -162,111 +195,32 @@ def main():
         5. Read the answer and check the **"Sources"** to see the original text.
         """)
 
+        # Only enable chat after document is processed
         if st.session_state.processing_complete:
             query = st.text_input("Ask a question:")
+            
             if query and st.button("Ask"):
                 with st.spinner("Thinking..."):
                     try:
+                        # Generate RAG-based response
                         response = generate_response(query, st.session_state.vectorstore)
                         st.markdown(f"**Answer:** {response.content}")
                         
-                        # Save to history
+                        # Store conversation history
                         st.session_state.chat_history.append((query, response.content))
                     except Exception as e:
                         st.error(f"Generation Error: {e}")
             
-            # Show History
+            # Display chat history in expandable format
             for q, a in reversed(st.session_state.chat_history):
                 with st.expander(f"Q: {q}"):
                     st.write(a)
         else:
             st.info("Upload and process a document to start chatting.")
-        
-    
-    # # Show PDF preview and chat interface if processing is complete
-    # if st.session_state.processing_complete and uploaded_file is not None:
-    #     st.header("📄 Document Preview")
-    #     display_pdf(uploaded_file)
-        
-    #     # Display chat interface
-    #     st.header("💬 Medical Q&A")
-        
-    #     # Display chat history
-    #     if st.session_state.chat_history:
-    #         for i, (question, answer, sources) in enumerate(st.session_state.chat_history):
-    #             with st.expander(f"Q: {question[:80]}...", expanded=(i == len(st.session_state.chat_history)-1)):
-    #                 st.markdown(f"**❓ Question:** {question}")
-    #                 st.markdown(f"**🎯 Answer:** {answer}")
-                    
-    #                 # Display sources
-    #                 if sources and len(sources) > 0:
-    #                     with st.expander("📚 Reference Sources"):
-    #                         for j, source in enumerate(sources):
-    #                             st.markdown(f"**Source {j+1}:**")
-    #                             st.text(source[:400] + "..." if len(source) > 400 else source)
-    #                             st.divider()
-    #     else:
-    #         st.info("💡 Ask a question about the medical document to get started!")
-        
-    #     # Question input
-    #     st.divider()
-    #     col1, col2 = st.columns([4, 1])
-        
-    #     with col1:
-    #         question = st.text_input(
-    #             "Ask a medical question:",
-    #             placeholder="e.g., What are the clinical features and management of acute myocardial infarction?",
-    #             key="question_input",
-    #             label_visibility="collapsed"
-    #         )
-        
-    #     with col2:
-    #         st.write("")  # Spacing
-    #         st.write("")
-    #         ask_button = st.button("Ask", type="primary", use_container_width=True, key="ask_btn")
-        
-    #     if ask_button and question:
-    #         with st.spinner("🔍 Searching medical knowledge..."):
-    #             try:
-    #                 # Generate response
-    #                 response = generate_response(question, st.session_state.vectorstore)
-                    
-    #                 # Retrieve sources for display
-    #                 retriever = st.session_state.vectorstore.as_retriever(
-    #                     search_type="similarity",
-    #                     search_kwargs={"k": 3}
-    #                 )
-                    
-    #                 # Use the new invoke method
-    #                 relevant_docs = retriever.invoke(question)
-    #                 sources = [doc.page_content for doc in relevant_docs]
-                    
-    #                 # Add to chat history
-    #                 st.session_state.chat_history.append(
-    #                     (question, response.content, sources)
-    #                 )
-                    
-    #                 # Rerun to update display
-    #                 st.rerun()
-                    
-    #             except Exception as e:
-    #                 st.error(f"❌ Error generating response: {str(e)}")
-        
-    #     # Document info sidebar
-    #     st.sidebar.header("📊 Document Info")
-    #     st.sidebar.success(f"✅ **Loaded:** {st.session_state.document_name}")
-    #     st.sidebar.info(f"📚 **Knowledge Chunks:** {len(st.session_state.processed_docs)}")
-        
-    #     # Clear conversation button
-    #     if st.sidebar.button("🗑️ Clear Conversation", key="clear_chat"):
-    #         st.session_state.chat_history = []
-    #         st.rerun()
-        
-    #     # Show chat statistics
-    #     if st.session_state.chat_history:
-    #         st.sidebar.divider()
-    #         st.sidebar.metric("💬 Questions Asked", len(st.session_state.chat_history))
 
+# =========================
+# APPLICATION ENTRY POINT
+# =========================
 
 if __name__ == "__main__":
     main()
