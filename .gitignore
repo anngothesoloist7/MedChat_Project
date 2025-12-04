@@ -21,3 +21,4 @@ RAG-PIPELINE/database/raw/*
 RAG-PIPELINE/database/splitted/*
 RAG-PIPELINE/database/parsed/*
 docs
+.vscode
