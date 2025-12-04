@@ -19,7 +19,7 @@ class QdrantManager:
         if Config.QDRANT_API_KEY.startswith("AIza"):
             raise ValueError("[ERROR] QDRANT_API_KEY looks like a Google API Key.")
 
-        self.qdrant_client = QdrantClient(url=Config.QDRANT_URL, api_key=Config.QDRANT_API_KEY)
+        self.qdrant_client = QdrantClient(url=Config.QDRANT_URL, port=443, api_key=Config.QDRANT_API_KEY)
         self.sparse_model = SparseTextEmbedding(model_name="Qdrant/bm25", cache_dir=str(Config.MODELS_DIR))
         self.Config = Config
 
@@ -45,7 +45,14 @@ class QdrantManager:
 
     def get_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents?key={Config.GOOGLE_EMBEDDING_API_KEY}"
-        payload = {"requests": [{"model": "models/gemini-embedding-001", "content": {"parts": [{"text": t}]}} for t in texts]}
+        payload = {
+            "requests": [{
+                "model": "models/gemini-embedding-001",
+                "content": {"parts": [{"text": t}]},
+                "taskType": "RETRIEVAL_DOCUMENT",
+                "outputDimensionality": Config.DENSE_VECTOR_SIZE
+            } for t in texts]
+        }
         
         for attempt in range(5):
             try:
@@ -120,13 +127,43 @@ class QdrantManager:
             print(f"[ERROR] Upsert failed for batch {batch_id}: {e}")
             return 0
 
-    def process_and_index(self, json_path: str):
+    def process_and_index(self, json_path: str, overwrite: bool = False):
         with open(json_path, 'r', encoding='utf-8') as f: chunks = json.load(f)
         if not chunks: return
 
         book_name = Path(json_path).stem.replace("_chunks", "")
         book_meta = self.load_metadata(book_name)
+        pdf_id = book_meta.get("pdf_id")
+
+        if pdf_id and pdf_id != "unknown":
+            try:
+                count_res = self.qdrant_client.count(
+                    collection_name=Config.COLLECTION_NAME,
+                    count_filter=models.Filter(must=[models.FieldCondition(key="pdf_id", match=models.MatchValue(value=pdf_id))])
+                )
+                if count_res.count > 0:
+                    if overwrite:
+                        print(f"[INFO] Overwriting {book_name} (PDF ID: {pdf_id}). Deleting {count_res.count} existing points...")
+                        self.qdrant_client.delete(
+                            collection_name=Config.COLLECTION_NAME,
+                            points_selector=models.FilterSelector(
+                                filter=models.Filter(must=[models.FieldCondition(key="pdf_id", match=models.MatchValue(value=pdf_id))])
+                            )
+                        )
+                        print("[SUCCESS] Deleted existing points.")
+                    else:
+                        print(f"[WARN] {book_name} already exists in Qdrant ({count_res.count} points). Skipping (overwrite=False).")
+                        return
+            except Exception as e:
+                print(f"[WARN] Failed to check/delete existing points for {book_name}: {e}")
+
         print(f"[INFO] Indexing {len(chunks)} chunks for {book_name}...")
+        
+        # Get collection size before
+        try:
+            info_before = self.qdrant_client.get_collection(Config.COLLECTION_NAME)
+            size_before = info_before.points_count
+        except: size_before = 0
         
         total_indexed = 0
         batch_size = Config.GEMINI_BATCH_SIZE
@@ -136,9 +173,22 @@ class QdrantManager:
             total_indexed += self.process_batch(batch, book_meta, f"{i//batch_size}")
             time.sleep(0.5) 
             
-        pipeline_logger.log_phase_3(book_name, total_indexed, len(chunks))
+        # Get collection size after
+        try:
+            info_after = self.qdrant_client.get_collection(Config.COLLECTION_NAME)
+            size_after = info_after.points_count
+        except: size_after = 0
 
-def run_embedding(files: list[str]):
+        pipeline_logger.log_phase_3(
+            book_name=book_name, 
+            total_chunks=len(chunks), 
+            imported=total_indexed, 
+            failed=len(chunks) - total_indexed,
+            collection_size_before=size_before,
+            collection_size_after=size_after
+        )
+
+def run_embedding(files: list[str], overwrite: bool = False):
     manager = QdrantManager()
     if not manager.check_connections(): return
     manager.init_collection()
@@ -148,7 +198,7 @@ def run_embedding(files: list[str]):
         path = Path(f)
         target = Config.PARSED_DIR / f"{path.stem}_chunks.json" if path.suffix.lower() == '.pdf' else path
         if target.exists(): 
-            manager.process_and_index(str(target))
+            manager.process_and_index(str(target), overwrite=overwrite)
             processed_files.append(str(target))
         else:
             print(f"[WARN] Parsed file not found: {target}")

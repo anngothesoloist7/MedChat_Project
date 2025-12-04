@@ -83,7 +83,7 @@ def process_pdf(pdf_file: Path, phases: dict):
         else:
             pipeline_logger.log_phase("Embedding", "STARTED")
             try:
-                run_embedding(split_files)
+                run_embedding(split_files, overwrite=phases.get('overwrite', False))
                 pipeline_logger.log_phase("Embedding", "COMPLETED")
             except Exception as e:
                 pipeline_logger.log_phase("Embedding", "ERROR", str(e))
@@ -132,6 +132,7 @@ def main():
     parser.add_argument("input_path", nargs="?", help="Input PDF path, directory, or URL")
     parser.add_argument("--phase", type=int, choices=[1, 2, 3], help="Run specific phase")
     parser.add_argument("--clean", type=int, choices=[0, 1], default=0, help="Cleanup temp files")
+    parser.add_argument("--overwrite", type=int, choices=[0, 1], default=0, help="Overwrite existing document in Qdrant")
     args = parser.parse_args()
 
     raw_input = args.input_path or input("Enter path or URL: ").strip('"')
@@ -171,7 +172,8 @@ def main():
         'p1': args.phase is None or args.phase == 1,
         'p2': args.phase is None or args.phase == 2,
         'p3': args.phase is None or args.phase == 3,
-        'clean': args.clean == 1
+        'clean': args.clean == 1,
+        'overwrite': args.overwrite == 1
     }
 
     for f in final_files: process_pdf(f, phases)
