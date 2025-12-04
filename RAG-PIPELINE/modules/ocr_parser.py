@@ -9,11 +9,12 @@ from dotenv import load_dotenv
 from mistralai import Mistral, DocumentURLChunk
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
+from modules.utils.pipeline_logger import pipeline_logger
 
-# Load environment variables (prioritize .env.local)
+# Load environment variables from project root
 base_path = Path(__file__).resolve().parent.parent
-env_path = base_path / ".env.local"
-load_dotenv(env_path if env_path.exists() else base_path / ".env")
+env_path = base_path / ".env"
+load_dotenv(env_path)
 
 class Config:
     BASE_DIR = os.getenv("BASE_DIR", os.getcwd())
@@ -60,6 +61,7 @@ def upload_pdf(client: Mistral, file_path: str) -> tuple[str, str]:
     filename = os.path.basename(file_path)
     rate_tracker.wait_if_needed()
     print(f"[INFO] Uploading {filename}...")
+    pipeline_logger.log_info(f"Uploading {filename}...")
     with open(file_path, "rb") as f:
         upload = client.files.upload(file={"file_name": filename, "content": f}, purpose="ocr")
     return upload.id, client.files.get_signed_url(file_id=upload.id).url
@@ -80,6 +82,7 @@ def save_parsed_content(filename: str, markdown: str, chunks: list, json_pages: 
 
 def parse_markdown_for_rag(pages_data: list[dict], source_file: str):
     print("[INFO] Parsing markdown...")
+    pipeline_logger.log_info("Parsing markdown...")
     docs = [Document(page_content=p['content'], metadata={"source": source_file, "page_number": p['page']}) for p in pages_data]
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=Config.CHUNK_SIZE, chunk_overlap=Config.CHUNK_OVERLAP,
@@ -104,6 +107,7 @@ def process_file(file_path: str):
         file_id, signed_url = upload_pdf(client, file_path)
         rate_tracker.wait_if_needed()
         print(f"[INFO] Requesting OCR...")
+        pipeline_logger.log_info("Requesting OCR...")
         
         import itertools
         max_retries = 10
@@ -167,6 +171,7 @@ def process_file(file_path: str):
                     raise e # Re-raise after last attempt
             
         print(f"[INFO] OCR Done in {time.time()-ocr_start_total:.1f}s")
+        pipeline_logger.log_info(f"OCR Done in {time.time()-ocr_start_total:.1f}s")
         
         pages_data, md_parts, json_pages = [], [], []
         for i, page in enumerate(ocr.pages):

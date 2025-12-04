@@ -1,0 +1,32 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+#.env
+
+#=== Rag Pipeline ===#
+
+# Logs
+logs/*
+
+# Database
+<<<<<<< HEAD:.gitignore
+RAG-PIPELINE/database/raw/*
+RAG-PIPELINE/database/splitted/*
+RAG-PIPELINE/database/parsed/*
+docs
+.vscode
+=======
+database/raw/*
+database/splitted/*
+database/parsed/*
+
+# BM25 Model
+models
+>>>>>>> ad0a7584a01d8bbc20df184ea9f398f8eb3f56aa:RAG-PIPELINE/.gitignore

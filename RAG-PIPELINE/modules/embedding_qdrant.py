@@ -9,12 +9,13 @@ from dotenv import load_dotenv
 from qdrant_client import QdrantClient, models
 from tqdm import tqdm
 from fastembed import SparseTextEmbedding
+from modules.utils.pipeline_logger import pipeline_logger
 
 # Load environment variables
-# Load environment variables
+# Load environment variables from project root
 base_path = Path(__file__).resolve().parent.parent
-env_path = base_path / ".env.local"
-load_dotenv(env_path if env_path.exists() else base_path / ".env")
+env_path = base_path / ".env"
+load_dotenv(env_path)
 
 class Config:
     BASE_DIR = Path(os.getenv("BASE_DIR", os.getcwd()))
@@ -29,10 +30,12 @@ class Config:
     QDRANT_BATCH_SIZE = int(os.getenv("QDRANT_BATCH_SIZE", 100))
     PARSED_FOLDER = PIPELINE_ROOT / "database" / "parsed"
     RAW_FOLDER = PIPELINE_ROOT / "database" / "raw"
+    MODELS_DIR = PIPELINE_ROOT / "models"
     
     # Ensure directories exist
     PARSED_FOLDER.mkdir(parents=True, exist_ok=True)
     RAW_FOLDER.mkdir(parents=True, exist_ok=True)
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 class QdrantManager:
     def __init__(self):
@@ -54,7 +57,11 @@ class QdrantManager:
         self.Config = Config
         
         # Initialize BM25 model for sparse vectors
-        self.sparse_model = SparseTextEmbedding(model_name="Qdrant/bm25")
+        # Use local cache to avoid repeated downloads/connection issues
+        self.sparse_model = SparseTextEmbedding(
+            model_name="Qdrant/bm25",
+            cache_dir=str(Config.MODELS_DIR)
+        )
         
     def check_connections(self) -> bool:
         print("[INFO] Checking connections...")
@@ -235,6 +242,7 @@ class QdrantManager:
         book_meta = self.load_metadata(path.stem.replace("_chunks", ""))
         total = len(chunks)
         print(f"[INFO] Indexing {total:,} chunks (Batch: {Config.GEMINI_BATCH_SIZE})...")
+        pipeline_logger.log_info(f"Indexing {total:,} chunks (Batch: {Config.GEMINI_BATCH_SIZE})...")
         
         # Get collection size before
         try:
@@ -293,4 +301,5 @@ def run_embedding(files: List[str]):
 
     if processed_files:
         from modules.utils.qdrant_verifier import verify_and_retry_indexing
+        pipeline_logger.log_info("VERIFY: Starting verification...")
         verify_and_retry_indexing(manager, processed_files, log_dir=str(Config.PIPELINE_ROOT / "logs"))

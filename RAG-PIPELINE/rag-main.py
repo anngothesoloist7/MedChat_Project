@@ -1,7 +1,5 @@
 import os
 import shutil
-import os
-import shutil
 import argparse
 from pathlib import Path
 from dotenv import load_dotenv
@@ -11,9 +9,9 @@ from modules.embedding_qdrant import run_embedding
 from modules.utils.file_utils import resolve_pdf_path, list_google_drive_folder, download_google_drive_file, is_url
 from modules.utils.pipeline_logger import pipeline_logger
 
-# Load environment variables (prioritize .env.local)
-env_path = Path(__file__).resolve().parent / ".env.local"
-load_dotenv(env_path if env_path.exists() else Path(os.getcwd()) / ".env")
+# Load environment variables from project root
+env_path = Path(__file__).resolve().parent / ".env"
+load_dotenv(env_path)
 
 class Config:
     BASE_DIR = Path(os.getenv("BASE_DIR", os.getcwd()))
@@ -46,6 +44,7 @@ def clear_pycache():
 
 def process_pdf(pdf_file: Path, phases: dict):
     print(f"\n{'='*40}\nProcessing: {pdf_file.name}\n{'='*40}")
+    print(f"DEBUG: phases={phases}")
     pipeline_logger.log_info(f"Processing PDF: {pdf_file.name}")
     
     split_files = []
@@ -53,9 +52,10 @@ def process_pdf(pdf_file: Path, phases: dict):
     # Phase 1: Split
     if phases['p1']:
         print("\n[INFO] Phase 1: Splitting...")
+        pipeline_logger.log_info("Phase 1: Splitting...")
         pipeline_logger.log_phase("Split", "STARTED", f"File: {pdf_file.name}")
         try:
-            split_files = run_splitter(str(pdf_file))
+            split_files = run_splitter(str(pdf_file), overwrite=phases.get('overwrite', False))
             if not split_files: 
                 print("[WARN] Splitting skipped or failed.")
                 pipeline_logger.log_phase("Split", "FAILED", "No files generated")
@@ -79,6 +79,7 @@ def process_pdf(pdf_file: Path, phases: dict):
     # Phase 2: OCR
     if phases['p2']:
         print("\n[INFO] Phase 2: OCR & Parsing...")
+        pipeline_logger.log_info("Phase 2: OCR & Parsing...")
         pipeline_logger.log_phase("OCR", "STARTED", f"Files: {len(split_files)}")
         try:
             run_ocr_parser(split_files)
@@ -93,6 +94,7 @@ def process_pdf(pdf_file: Path, phases: dict):
     # Phase 3: Embedding
     if phases['p3']:
         print("\n[INFO] Phase 3: Embedding...")
+        pipeline_logger.log_info("Phase 3: Embedding...")
         
         # Validate that all chunks exist before proceeding
         missing_chunks = []
