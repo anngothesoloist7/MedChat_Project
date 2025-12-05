@@ -14,113 +14,197 @@ A specialized, high-performance document processing engine designed to ingest me
 
 The pipeline executes in three distinct, resumable phases, turning raw PDFs into indexed vector knowledge.
 
-![RAG Pipeline Architecture](assets/rag_pipeline_diagram.png)
+### 1. Input Handling & Initialization
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px', 'fontFamily': 'Inter', 'lineWidth': '2px'}}}%%
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#D5E8D4',
+      'primaryTextColor': '#000000',
+      'primaryBorderColor': '#82B366',
+      'lineColor': '#555555',
+      'secondaryColor': '#FFF2CC',
+      'tertiaryColor': '#DAE8FC',
+      'fontFamily': 'Inter, sans-serif'
+    }
+  }
+}%%
 flowchart TD
-    classDef main fill:#2C3E50,stroke:#fff,stroke-width:2px;
-    classDef phase1 fill:#8E44AD,stroke:#fff,stroke-width:2px;
-    classDef phase2 fill:#27AE60,stroke:#fff,stroke-width:2px;
-    classDef phase3 fill:#2980B9,stroke:#fff,stroke-width:2px;
-    classDef error fill:#C0392B,stroke:#fff,stroke-width:2px,stroke-dasharray: 5 5;
-    classDef decision fill:#F39C12,stroke:#000,stroke-width:2px,color:#000;
-    classDef db fill:#34495E,stroke:#fff,stroke-width:2px;
+    classDef default fill:#D5E8D4,stroke:#82B366,stroke-width:1px,color:#000;
+    classDef decision fill:#FFF2CC,stroke:#D6B656,stroke-width:1px,color:#000;
+    classDef action fill:#DAE8FC,stroke:#6C8EBF,stroke-width:1px,color:#000;
+    classDef terminator fill:#F5F5F5,stroke:#666666,stroke-width:1px,color:#333;
 
-    Start([Start: rag-main.py CLI]) --> Init[Initialize: Load .env, Config, Logging]
+    Start([Start: rag-main.py CLI]):::terminator --> Init[Initialize: Load .env, Config]
     Init --> InputPrompt[/Prompt: Input Path or URL/]
-    InputPrompt --> InputType{Check Input Type}
+    InputPrompt --> InputType{Check Input Type}:::decision
     
-    InputType -- URL --> URLRes[resolve_pdf_path / download]
-    InputType -- GDrive --> GDDown[download_google_drive_file]
-    InputType -- Local Dir/File --> Local[Validate Local Path]
+    InputType -- "URL / Link" --> URLRes[resolve_pdf_path]:::action
+    InputType -- "Google Drive" --> GDDown[download_google_drive_file]:::action
+    InputType -- "Local File/Dir" --> Local[Validate Local Path]:::action
     
-    URLRes --> ProcessLoop[Start Processing Pipeline]
-    GDDown --> ProcessLoop
-    Local --> ProcessLoop
-
-    subgraph Phase1 [Phase 1: Splitting & Metadata]
-        direction TB
-        P1_Start(Start Splitter) --> P1_Init[Copy PDF to database/raw]
-        P1_Init --> P1_CheckQ{check_qdrant_existence?}:::decision
-        
-        P1_CheckQ -- "Exists & Overwrite=False" --> P1_Skip[Skip / Error: FileExists]:::error
-        P1_CheckQ -- "Exists & Overwrite=True" --> P1_Del[Delete Existing Points in Qdrant]
-        P1_CheckQ -- "New File" --> P1_Meta
-        
-        P1_Del --> P1_Meta[extract_metadata]
-        P1_Meta --> |First 15 pages| MistralUpload[Mistral OCR Upload]
-        MistralUpload --> MistralProcess[Mistral OCR Process]
-        MistralProcess --> GeminiMeta[Gemini 1.5 Pro + Google Search]
-        GeminiMeta --> SaveMeta[Save _metadata.json]
-        
-        SaveMeta --> SplitLogic[PDFProcessor.split_pdf]
-        SplitLogic --> |PyPDF / fallback pdfium2| SaveSplit[Save Split chunks to database/splitted]
-    end
-
-    ProcessLoop --> Phase1
+    URLRes --> ListFiles[Generate File List]
+    GDDown --> ListFiles
+    Local --> ListFiles
     
-    subgraph Phase2 [Phase 2: OCR & Parsing]
-        direction TB
-        P1_Skip --> P2_Start(Start OCR Parser)
-        SaveSplit --> P2_Start
-        
-        P2_Start --> P2_Loop{For each Split PDF}
-        P2_Loop --> P2_Upload[Mistral Upload]
-        P2_Upload --> P2_OCR[Mistral OCR Request w/ Retries]
-        P2_OCR --> P2_SaveRaw[Get Markdown Pages]
-        
-        P2_SaveRaw --> P2_CheckMeta{Check Metadata Language}:::decision
-        P2_CheckMeta -- "Vietnamese" --> P2_Trans[Gemini Flash Translation]
-        P2_CheckMeta -- "English/Other" --> P2_Chunk
-        
-        P2_Trans --> P2_Chunk[RecursiveCharacterTextSplitter]
-        P2_Chunk --> P2_Save[Save _full.md & _chunks.json]
-        P2_Save --> P2_Loop
-    end
+    ListFiles --> Select{User Selection}:::decision
+    Select -- "Select All / Specific" --> Prepare[Finalize List of PDFs]
+    Prepare --> NextPhase([Proceed to Phase 1]):::terminator
+```
 
-    Phase1 --> Phase2
+### 2. Phase 1: Splitting & Metadata
 
-    subgraph Phase3 [Phase 3: Embedding & Indexing]
-        direction TB
-        P3_Start(Start Embedding) --> P3_Conn[QdrantManager.check_connections]
-        P3_Conn -- Fail --> P3_Stop[Stop Pipeline]:::error
-        P3_Conn -- OK --> P3_Init[init_collection: Dense + BM25 Config]
-        
-        P3_Init --> P3_Loop{For each _chunks.json}
-        P3_Loop --> P3_Load[Load Metadata & Chunks]
-        P3_Load --> P3_CheckID{Check Content ID}:::decision
-        
-        P3_CheckID -- "Exists & Overwrite=False" --> P3_SkipFile[Skip File]
-        P3_CheckID -- "New or Overwrite" --> P3_Batch[Batch Process]
-        
-        P3_Batch --> |Parallel| P3_Dense[Gemini Embedding 001]
-        P3_Batch --> |Parallel| P3_Sparse[SPLADE / BM25 Sparse]
-        
-        P3_Dense & P3_Sparse --> P3_Upsert[Qdrant Upsert Points]
-        P3_Upsert --> P3_Loop
-    end
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#D5E8D4',
+      'primaryTextColor': '#000000',
+      'primaryBorderColor': '#82B366',
+      'lineColor': '#555555',
+      'secondaryColor': '#FFF2CC',
+      'tertiaryColor': '#DAE8FC',
+      'fontFamily': 'Inter, sans-serif'
+    }
+  }
+}%%
+flowchart TD
+    classDef default fill:#D5E8D4,stroke:#82B366,stroke-width:1px,color:#000;
+    classDef decision fill:#FFF2CC,stroke:#D6B656,stroke-width:1px,color:#000;
+    classDef action fill:#DAE8FC,stroke:#6C8EBF,stroke-width:1px,color:#000;
+    classDef error fill:#F8CECC,stroke:#B85450,stroke-width:1px,stroke-dasharray: 5 5,color:#000;
 
-    Phase2 --> P3_Start
-    P2_Loop -- Done --> P3_Start
-
-    P3_Loop -- Done --> P3_Verify(verify_and_retry_indexing)
+    Start([Start Phase 1]) --> Copy[Copy PDF to database/raw]:::action
+    Copy --> CheckQ{Check Qdrant Existence}:::decision
     
-    subgraph Verification [Final Verification]
-        P3_Verify --> VerifyCount{Count vs Expected}:::decision
-        VerifyCount -- Match --> VerifyOK[Log Success]
-        VerifyCount -- Mismatch --> VerifyRetry[Retry Missing Chunks]
-        VerifyRetry --> P3_Batch
-    end
+    CheckQ -- "Exists & Overwrite=False" --> Skip[Skip File]:::error
+    CheckQ -- "Exists & Overwrite=True" --> Delete[Delete Existing Points]:::action
+    CheckQ -- "New File" --> Meta
+    
+    Delete --> Meta[extract_metadata]:::action
+    Meta --> Mistral["Mistral OCR (First 15 Pages)"]
+    Mistral --> Gemini["Gemini 2.5 Pro + Google Search"]
+    Gemini --> SaveMeta[Save _metadata.json]:::action
+    
+    SaveMeta --> Calc[Calculate Split Ranges]
+    Calc --> Split["Split PDF (PyPDF / pdfium2)"]:::action
+    Split --> Output[Save to database/splitted]
+```
 
-    VerifyOK --> Cleanup[cleanup_temp_files]
-    Cleanup --> Finish([End Pipeline])
+### 3. Phase 2: OCR & Parsing
 
-    class Start,Finish main;
-    class P1_Start,P1_Init,P1_Meta,MistralUpload,MistralProcess,GeminiMeta,SaveMeta,SplitLogic,SaveSplit,P1_Del phase1;
-    class P2_Start,P2_Upload,P2_OCR,P2_SaveRaw,P2_Trans,P2_Chunk,P2_Save,P2_Loop phase2;
-    class P3_Start,P3_Conn,P3_Init,P3_Load,P3_Batch,P3_Dense,P3_Sparse,P3_Upsert,P3_Loop,P3_Verify,VerifyRetry phase3;
-    class QdrantDB db;
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#D5E8D4',
+      'primaryTextColor': '#000000',
+      'primaryBorderColor': '#82B366',
+      'lineColor': '#555555',
+      'secondaryColor': '#FFF2CC',
+      'tertiaryColor': '#DAE8FC',
+      'fontFamily': 'Inter, sans-serif'
+    }
+  }
+}%%
+flowchart TD
+    classDef default fill:#D5E8D4,stroke:#82B366,stroke-width:1px,color:#000;
+    classDef decision fill:#FFF2CC,stroke:#D6B656,stroke-width:1px,color:#000;
+    classDef action fill:#DAE8FC,stroke:#6C8EBF,stroke-width:1px,color:#000;
+
+    Start([Start Phase 2]) --> Loop{For each Split PDF}:::decision
+    Loop --> Upload[Upload to Mistral API]:::action
+    Upload --> OCR[Mistral OCR Process]
+    OCR --> RawMD[Get Raw Markdown]
+    
+    RawMD --> LangCheck{Check Language}:::decision
+    LangCheck -- "Vietnamese" --> Trans[Gemini Flash Translation]:::action
+    LangCheck -- "English/Other" --> Chunk
+    
+    Trans --> Chunk[Recursive Character Split]:::action
+    Chunk --> Save[Save _full.md & _chunks.json]:::action
+    Save --> Loop
+```
+
+### 4. Phase 3: Embedding & Indexing
+
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#D5E8D4',
+      'primaryTextColor': '#000000',
+      'primaryBorderColor': '#82B366',
+      'lineColor': '#555555',
+      'secondaryColor': '#FFF2CC',
+      'tertiaryColor': '#DAE8FC',
+      'fontFamily': 'Inter, sans-serif'
+    }
+  }
+}%%
+flowchart TD
+    classDef default fill:#D5E8D4,stroke:#82B366,stroke-width:1px,color:#000;
+    classDef decision fill:#FFF2CC,stroke:#D6B656,stroke-width:1px,color:#000;
+    classDef action fill:#DAE8FC,stroke:#6C8EBF,stroke-width:1px,color:#000;
+    classDef error fill:#F8CECC,stroke:#B85450,stroke-width:1px,stroke-dasharray: 5 5,color:#000;
+
+    Start([Start Phase 3]) --> Connect[Check Qdrant Connection]:::decision
+    Connect -->|Fail| Stop[Stop Pipeline]:::error
+    Connect -->|Success| Init["Init Collection (Dense + BM25)"]:::action
+    
+    Init --> Loop{For each chunk file}:::decision
+    Loop --> Load[Load _chunks.json & Metadata]
+    Load --> BatchLoop{Batch Process}:::decision
+    
+    BatchLoop --> Dense[Gemini Embedding 001]:::action
+    BatchLoop --> Sparse[SPLADE / BM25 Sparse]:::action
+    
+    Dense & Sparse --> Point[Create Qdrant Point]
+    Point --> Upsert[Upsert to Qdrant]:::action
+    Upsert --> BatchLoop
+    
+    BatchLoop -- Done --> Loop
+```
+
+### 5. Verification & Cleanup
+
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#D5E8D4',
+      'primaryTextColor': '#000000',
+      'primaryBorderColor': '#82B366',
+      'lineColor': '#555555',
+      'secondaryColor': '#FFF2CC',
+      'tertiaryColor': '#DAE8FC',
+      'fontFamily': 'Inter, sans-serif'
+    }
+  }
+}%%
+flowchart TD
+    classDef default fill:#D5E8D4,stroke:#82B366,stroke-width:1px,color:#000;
+    classDef decision fill:#FFF2CC,stroke:#D6B656,stroke-width:1px,color:#000;
+    classDef action fill:#DAE8FC,stroke:#6C8EBF,stroke-width:1px,color:#000;
+    classDef terminator fill:#F5F5F5,stroke:#666666,stroke-width:1px,color:#333;
+
+    Start([End of Phase 3]) --> Count[Count Local Chunks]:::action
+    Count --> Query["Count Qdrant Points (by PDF ID)"]:::action
+    
+    Query --> Match{Match?}:::decision
+    Match -- "Yes" --> Success[Log Success]
+    Match -- "No (Missing)" --> Retry[Retry Missing Assets]:::action
+    Retry --> BackToPhase3([Trigger Phase 3 Logic]):::terminator
+    
+    Success --> CleanPrompt{Clean Temp Files?}:::decision
+    CleanPrompt -- "Yes" --> Clean[Delete raw/splitted/parsed]:::action
+    Clean --> Finish([Pipeline Complete]):::terminator
 ```
 
 ### Directory Structure
@@ -149,7 +233,7 @@ rag-pipeline/
 | :--- | :--- | :--- |
 | **Language** | Python 3.11+ | Core logic and orchestration. |
 | **OCR** | Mistral AI | State-of-the-art text & image extraction. |
-| **LLM** | Google Gemini | Metadata (2.5 Pro with Google Search), Translation (2.0 Flash), Embeddings(gemini-embedding-001). |
+| **LLM** | Google Gemini | Metadata (gemini-2.5-pro with Google Search), Translation (gemini-2.0-flash), Embeddings (gemini-embedding-001). |
 | **Vectors** | Gemini + SPLADE | Hybrid Dense (Semantic) + Sparse (Keyword). |
 | **DB** | Qdrant | High-speed vector storage. |
 | **Tooling** | `uv`, `LangChain` | Package management and text chunking. |
