@@ -66,11 +66,79 @@ def get_status(limit: int = 50):
     except Exception as e:
         return {"logs": [f"Error reading logs: {str(e)}"]}
 
+# --- WebSocket Connection Manager ---
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            await connection.send_json(message)
+
+manager = ConnectionManager()
+
+# --- Patch Pipeline Logger for WebSocket ---
+pipeline_logger_instance = rag_main.pipeline_logger
+running_loop = None
+
+@app.on_event("startup")
+async def startup_event():
+    global running_loop
+    running_loop = asyncio.get_running_loop()
+
+def broadcast_log(phase, status, details=""):
+    step_map = {"Split": 1, "OCR": 2, "Embedding": 3}
+    base_phase = phase.split(" ")[0] if " " in phase else phase
+    step = step_map.get(base_phase, 0)
+    
+    # Map status to UI expected status
+    status_lower = status.lower()
+    if status_lower == "started": ui_status = "processing"
+    elif status_lower == "completed": ui_status = "completed"
+    elif status_lower == "skipped": ui_status = "skipped"
+    elif status_lower == "error": ui_status = "error"
+    else: ui_status = "processing"
+
+    msg = {
+        "step": step,
+        "status": ui_status,
+        "message": f"[{phase}] {status}: {details}"
+    }
+    
+    if running_loop and manager:
+        asyncio.run_coroutine_threadsafe(manager.broadcast(msg), running_loop)
+
+# Apply Patch
+original_log_phase = pipeline_logger_instance.log_phase
+def patched_log_phase(phase, status, details=""):
+    broadcast_log(phase, status, details)
+    original_log_phase(phase, status, details)
+
+pipeline_logger_instance.log_phase = patched_log_phase
+
 def run_pipeline_task(file_path: Path, phases: dict):
     try:
+        # Notify Start
+        if running_loop and manager:
+             asyncio.run_coroutine_threadsafe(manager.broadcast({"step": 0, "status": "initializing", "message": f"Starting pipeline for {file_path.name}"}), running_loop)
+             
         process_pdf(file_path, phases)
+        
+        # Notify Finish (if not already by logger)
+        if running_loop and manager:
+             asyncio.run_coroutine_threadsafe(manager.broadcast({"step": 4, "status": "completed", "message": "Pipeline Finished"}), running_loop)
+
     except Exception as e:
         print(f"Error in background task: {e}")
+        if running_loop and manager:
+             asyncio.run_coroutine_threadsafe(manager.broadcast({"step": 0, "status": "error", "message": str(e)}), running_loop)
 
 @app.post("/process")
 async def process_document(
@@ -167,22 +235,7 @@ async def process_document(
 
 EXISTING_FILES_MOCK = ["machine_learning_101.pdf", "medical_handbook.pdf"]
 
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: list[WebSocket] = []
 
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
-
-    async def broadcast(self, message: dict):
-        for connection in self.active_connections:
-            await connection.send_json(message)
-
-manager = ConnectionManager()
 
 @app.websocket("/ws/pipeline")
 async def websocket_endpoint(websocket: WebSocket):
@@ -208,7 +261,7 @@ async def run_mock_pipeline_task(filename: str, overwrite: bool):
 
     for step in steps:
         await manager.broadcast(step)
-        await asyncio.sleep(2) # Giả lập thời gian chạy
+        await asyncio.sleep(2)
 
     await manager.broadcast({"step": 4, "status": "completed", "message": "Done."})
 
