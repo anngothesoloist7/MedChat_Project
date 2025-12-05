@@ -2,8 +2,10 @@ import shutil
 import os
 from pathlib import Path
 from typing import Optional
-from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException, Form
+from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException, Form, WebSocket
 from pydantic import BaseModel
+import asyncio
+import json
 
 # Import from existing codebase
 # We need to make sure the path is correct. 
@@ -160,3 +162,78 @@ async def process_document(
         "files": [f.name for f in files_to_process],
         "phases": phases
     }
+
+# --- Mock Logic for UI Testing ---
+
+EXISTING_FILES_MOCK = ["machine_learning_101.pdf", "medical_handbook.pdf"]
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            await connection.send_json(message)
+
+manager = ConnectionManager()
+
+@app.websocket("/ws/pipeline")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except Exception:
+        manager.disconnect(websocket)
+
+async def run_mock_pipeline_task(filename: str, overwrite: bool):
+    """Giả lập pipeline chạy"""
+    action_msg = "Overwriting existing data..." if overwrite else "Processing new file..."
+    
+    await manager.broadcast({"step": 0, "status": "initializing", "message": f"Setup: {action_msg}"})
+    await asyncio.sleep(1)
+
+    steps = [
+        {"step": 1, "status": "splitting", "message": "Phase 1: Smart Splitting & Metadata"},
+        {"step": 2, "status": "ocr", "message": "Phase 2: Mistral OCR & Translation"},
+        {"step": 3, "status": "indexing", "message": "Phase 3: Embedding & Qdrant Indexing"},
+    ]
+
+    for step in steps:
+        await manager.broadcast(step)
+        await asyncio.sleep(2) # Giả lập thời gian chạy
+
+    await manager.broadcast({"step": 4, "status": "completed", "message": "Done."})
+
+class MockPipelineRequest(BaseModel):
+    filename: str
+    overwrite: bool = False
+
+@app.post("/check-file")
+async def check_file_existence(file: UploadFile = File(...)):
+    """
+    Bước 1: Kiểm tra xem file đã tồn tại trong DB chưa.
+    Trả về true/false để Frontend quyết định có hiện Popup không.
+    """
+    # Logic thực tế: Tính hash của file và check trong DB
+    is_exists = file.filename in EXISTING_FILES_MOCK
+    
+    return {
+        "filename": file.filename,
+        "exists": is_exists
+    }
+
+@app.post("/start-rag")
+async def start_rag_process_mock(req: MockPipelineRequest, background_tasks: BackgroundTasks):
+    """
+    Bước 2: Kích hoạt pipeline sau khi đã quyết định Overwrite hay không.
+    """
+    background_tasks.add_task(run_mock_pipeline_task, req.filename, req.overwrite)
+    return {"status": "started", "filename": req.filename, "overwrite": req.overwrite}
