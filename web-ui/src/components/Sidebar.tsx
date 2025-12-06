@@ -370,7 +370,6 @@ export function Sidebar({ isOpen, onToggle, activeTab, onTabChange, onLoadSessio
               {isOpen && (
                  <div className="flex flex-col items-start">
                     <span className="font-medium">{t('ehr_analysis')}</span>
-                    <span className="text-[10px] text-muted-foreground">{t('virtual_doctor')}</span>
                  </div>
               )}
             </button>

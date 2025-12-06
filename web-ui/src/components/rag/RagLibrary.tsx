@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  LayoutGrid, BarChart3, Search, FileText, Database, Ruler, Globe, Loader2, ChevronDown, User, Calendar, Maximize2, Minimize2, HardDrive, Trash2
+  LayoutGrid, BarChart3, Search, FileText, Database, Ruler, Globe, Loader2, ChevronDown, User, Calendar, Maximize2, Minimize2, HardDrive, Trash2, RefreshCw
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Book } from './types';
@@ -277,10 +277,22 @@ export const RagLibrary: React.FC<RagLibraryProps> = ({ books, stats, isLoading 
             {viewMode === 'list' && (
                 <div className="flex items-center gap-2 mb-6">
                     <div className="h-4 w-1 bg-accent rounded-full" />
-                    <h2 className="text-sm font-semibold tracking-tight uppercase text-muted-foreground">
-                        Index Library
-                    </h2>
-                    {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground ml-2" />}
+                    <div className="flex items-center gap-2 h-full">
+                         <h2 className="text-sm font-semibold tracking-tight uppercase text-muted-foreground leading-none">
+                            Document List
+                        </h2>
+                        <button 
+                            onClick={onRefresh}
+                            className={clsx(
+                                "ml-2 p-1 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-all", 
+                                isLoading && "animate-spin cursor-not-allowed opacity-70"
+                            )}
+                            disabled={isLoading}
+                            title="Reload Library"
+                        >
+                             <RefreshCw size={14} />
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -311,11 +323,24 @@ export const RagLibrary: React.FC<RagLibraryProps> = ({ books, stats, isLoading 
                 </div>
             ) : (
                 <div className="space-y-6">
-                    {/* System Metadata Header with Full Width Toggle */}
-                    <div className="flex items-center justify-between">
+                    {/* Document Insight Header with Full Width Toggle */}
+                    <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
-                            <div className="w-1 h-5 bg-accent rounded-full" />
-                            <h3 className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">System Metadata</h3>
+                            <div className="h-4 w-1 bg-accent rounded-full" />
+                            <div className="flex items-center gap-2 h-full">
+                                <h3 className="text-sm font-semibold tracking-tight uppercase text-muted-foreground leading-none">Document Insight</h3>
+                                <button 
+                                    onClick={onRefresh}
+                                    className={clsx(
+                                        "ml-2 p-1 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-all", 
+                                        isLoading && "animate-spin cursor-not-allowed opacity-70"
+                                    )}
+                                    disabled={isLoading}
+                                    title="Reload Insights"
+                                >
+                                     <RefreshCw size={14} />
+                                </button>
+                            </div>
                         </div>
                         <button
                             onClick={() => setFullWidth(!fullWidth)}
@@ -332,17 +357,10 @@ export const RagLibrary: React.FC<RagLibraryProps> = ({ books, stats, isLoading 
                     </div>
                     
                     {/* Stats Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <StatCard icon={FileText} label="Documents" value={books.length} change="" delay={0.1} />
-                        <StatCard icon={Database} label="Vector Points" value={totalPoints.toLocaleString()} change="" delay={0.2} />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <StatCard icon={FileText} label="Documents" value={books.length} change="pdf" delay={0.1} />
+                        <StatCard icon={Database} label="Vector Points" value={totalPoints.toLocaleString()} change="json" delay={0.2} />
                         <StatCard icon={Ruler} label="Avg Chunk Length" value={stats?.avg_chunk_length?.toLocaleString() || '0'} change="chars" delay={0.3} />
-                        <StatCard 
-                            icon={HardDrive} 
-                            label="Total Collection Size" 
-                            value={stats?.total_size_bytes ? (stats.total_size_bytes / 1024 / 1024 / 1024).toFixed(3) : '0'} 
-                            change="GB" 
-                            delay={0.4} 
-                        />
                     </div>
                     
                     {/* Label Distribution Chart - Bar Chart */}

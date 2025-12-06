@@ -8,19 +8,7 @@ from qdrant_client import QdrantClient, models
 import asyncio
 import json
 
-# Import from existing codebase
-# We need to make sure the path is correct. 
-# Since api.py is in the same dir as rag-main.py, we can import directly if we are careful with sys.path or just rely on relative imports if it was a package.
-# But rag-main is a script. Let's try to import from it.
-# However, rag-main is not a module name that is standard (hyphen).
-# I might need to rename rag-main.py to rag_main.py or use importlib.
-# Or I can just duplicate the minimal logic needed or refactor rag-main.py.
-# Refactoring rag-main.py to rag_main.py is safer for importing.
-
-import importlib.util
-spec = importlib.util.spec_from_file_location("rag_main", "rag-main.py")
-rag_main = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(rag_main)
+import rag_main
 
 # Now we can use rag_main.process_pdf, rag_main.Config, etc.
 process_pdf = rag_main.process_pdf

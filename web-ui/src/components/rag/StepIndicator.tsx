@@ -34,8 +34,8 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({ step, currentStep,
                 {isDone ? <Check size={10} /> : isActive ? <Loader2 size={10} className="animate-spin" /> : null}
             </motion.div>
             <div className={clsx("transition-opacity flex flex-col", isActive ? "opacity-100" : isDone ? "opacity-60" : "opacity-30")}>
-                <div className="flex items-center gap-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5">Phase 0{step}</p>
+                <div className="flex items-center gap-2 mb-0.5">
+                    <p className="text-[10px] font-bold uppercase tracking-widest leading-none">Phase 0{step}</p>
                     {isActive && (
                         <span className="flex h-1.5 w-1.5 relative">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-foreground opacity-75"></span>

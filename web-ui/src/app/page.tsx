@@ -11,12 +11,13 @@ import { clsx } from 'clsx';
 import { createClient } from '@/utils/supabase/client';
 import { useSettings } from '@/context/SettingsContext';
 import { getDeviceId } from '@/utils/device';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Import New RAG Components
 import { RagIngestion } from '@/components/rag/RagIngestion';
 import { RagLibrary } from '@/components/rag/RagLibrary';
 import { Book } from '@/components/rag/types';
+import { StartupLoader } from '@/components/StartupLoader';
 
 // Mock Data for Library (In real app, fetch from key-value store or DB)
 // Mock Data removed. Using real API.
@@ -43,6 +44,7 @@ function ThinkingText() {
 }
 
 export default function Home() {
+  const [showStartupLoader, setShowStartupLoader] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<'chat' | 'ehr'>('chat');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -267,6 +269,11 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans transition-colors duration-300">
+      <AnimatePresence>
+        {showStartupLoader && (
+           <StartupLoader onComplete={() => setShowStartupLoader(false)} />
+        )}
+      </AnimatePresence>
       <Sidebar 
         isOpen={isSidebarOpen} 
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -322,14 +329,14 @@ export default function Home() {
                     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center justify-center mb-8">
                         <div className="inline-flex items-center gap-2 mb-3 px-3 py-1 rounded-full bg-secondary/50 border border-border/50 backdrop-blur-sm">
                             <Sparkles className="w-3 h-3 text-accent-foreground" />
-                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Gemini RAG Processor</span>
+                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">RAG Processor</span>
                         </div>
-                        <h1 className="text-3xl font-medium text-foreground text-center">Knowledge Ingestion</h1>
+                        <h1 className="text-3xl font-medium text-foreground text-center">Knowledge Base</h1>
                     </motion.div>
 
                     <RagIngestion onComplete={handleRagComplete} />
 
-                    <RagLibrary books={books} stats={libraryStats} isLoading={isLibraryLoading} />
+<RagLibrary books={books} stats={libraryStats} isLoading={isLibraryLoading} onRefresh={fetchLibrary} />
                 </div>
             )}
 

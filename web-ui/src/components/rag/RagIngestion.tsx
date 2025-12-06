@@ -60,7 +60,10 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
         setState('checking');
         try {
             const response = await fetch(API_PROCESS, { method: 'POST', body: formData });
-            if (!response.ok) throw new Error("API Error");
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`API Error ${response.status}: ${text}`);
+            }
             
             const data = await response.json();
             if (data.results?.[0]) {
