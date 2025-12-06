@@ -138,9 +138,16 @@ def extract_metadata(file_path: Path, pdf_id: str = None):
             meta_json = json.dumps(meta_data, indent=2, ensure_ascii=False)
         except Exception:
             print("[WARN] Failed to parse metadata JSON, saving raw string.")
-            meta_json = meta_json_str
+            # Try to inject pdf_id into raw string if it looks like a JSON object
+            if pdf_id and meta_json_str.strip().endswith("}"):
+                 meta_json = meta_json_str.strip()[:-1] + f', "pdf_id": "{pdf_id}"}}'
+            else:
+                 meta_json = meta_json_str
             
-        meta_path = Config.RAW_DIR / f"{file_path.stem}_metadata.json"
+        # Use same normalization as split_pdf to ensure consistency
+        base_name = file_path.stem.replace("Bản sao của ", "").strip()
+        meta_path = Config.RAW_DIR / f"{base_name}_metadata.json"
+        
         meta_path.write_text(meta_json, encoding="utf-8")
         print(f"[SUCCESS] Metadata saved: {meta_path.name}")
         

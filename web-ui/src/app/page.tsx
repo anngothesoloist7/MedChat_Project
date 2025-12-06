@@ -4,18 +4,24 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { MessageBubble, Message } from '@/components/MessageBubble';
 import { InputArea, InputAreaRef } from '@/components/InputArea';
-import { DocumentCard } from '@/components/DocumentCard';
-import { Loader2, Gem, ChevronDown, Menu } from 'lucide-react';
+import { Menu, Sparkles } from 'lucide-react'; 
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { clsx } from 'clsx';
 import { createClient } from '@/utils/supabase/client';
 import { useSettings } from '@/context/SettingsContext';
 import { getDeviceId } from '@/utils/device';
+import { motion } from 'framer-motion';
 
-import RagPipelineVisualizer from '@/components/RagPipelineVisualizer';
+// Import New RAG Components
+import { RagIngestion } from '@/components/rag/RagIngestion';
+import { RagLibrary } from '@/components/rag/RagLibrary';
+import { Book } from '@/components/rag/types';
 
-type EhrPhase = 'idle' | 'submitting' | 'polling' | 'refining' | 'summary' | 'chatting';
+// Mock Data for Library (In real app, fetch from key-value store or DB)
+// Mock Data removed. Using real API.
+
+type EhrPhase = 'idle' | 'chatting'; 
 
 function ThinkingText() {
   const { t } = useSettings();
@@ -41,15 +47,42 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'chat' | 'ehr'>('chat');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [patientData, setPatientData] = useState<any>(null);
   const [ehrPhase, setEhrPhase] = useState<EhrPhase>('idle');
-  const [ragPhase, setRagPhase] = useState<number>(1); // 1, 2, 3
   const [sessionId, setSessionId] = useState(uuidv4()); 
-  const [pollIntervalId, setPollIntervalId] = useState<NodeJS.Timeout | null>(null);
   const [chatTitle, setChatTitle] = useState("New Chat");
   const [isSessionLoading, setIsSessionLoading] = useState(false);
+  
+  // Library State
+  const [books, setBooks] = useState<Book[]>([]);
+  const [libraryStats, setLibraryStats] = useState<any>(null);
+  const [isLibraryLoading, setIsLibraryLoading] = useState(false);
+
   const supabase = createClient();
   const { t } = useSettings();
+
+  const fetchLibrary = async () => {
+     setIsLibraryLoading(true);
+     try {
+         const res = await fetch('http://localhost:8000/library');
+         const data = await res.json();
+         if (data.books) {
+             setBooks(data.books);
+         }
+         if (data.stats) {
+             setLibraryStats(data.stats);
+         }
+     } catch (e) {
+         console.error("Failed to fetch library", e);
+     } finally {
+         setIsLibraryLoading(false);
+     }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'ehr') {
+        fetchLibrary();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (window.innerWidth < 768) {
@@ -62,7 +95,6 @@ export default function Home() {
 
   useEffect(() => {
     if (!isLoading) {
-      // Small timeout to ensure DOM is ready and animation might be finishing
       setTimeout(() => {
         inputAreaRef.current?.focus();
       }, 100);
@@ -77,321 +109,136 @@ export default function Home() {
     scrollToBottom();
   }, [messages, isLoading]);
 
-  useEffect(() => {
-    return () => {
-      if (pollIntervalId) clearInterval(pollIntervalId);
-    };
-  }, [pollIntervalId]);
-
   // --- Session Locking Heartbeat ---
   useEffect(() => {
     if (!sessionId) return;
-
     const deviceId = getDeviceId();
-    
-    // Heartbeat every 30 seconds
     const heartbeat = setInterval(async () => {
       try {
-        await supabase.rpc('refresh_session_lock', {
-          p_session_id: sessionId,
-          p_device_id: deviceId
-        });
-      } catch (e) {
-        // Ignore lock errors
-      }
+        await supabase.rpc('refresh_session_lock', { p_session_id: sessionId, p_device_id: deviceId });
+      } catch (e) { /* Ignore */ }
     }, 30000);
 
-    // Initial lock acquisition/refresh (just in case)
-    supabase.rpc('refresh_session_lock', {
-      p_session_id: sessionId,
-      p_device_id: deviceId
-    }).then(({ error }) => {
+    supabase.rpc('refresh_session_lock', { p_session_id: sessionId, p_device_id: deviceId }).then(({ error }) => {
       if (error) console.warn("Session lock init failed (ignoring)");
     });
 
     return () => {
       clearInterval(heartbeat);
-      // Release lock on unmount or session change
-      // Note: This might not fire on tab close reliably, but the 1-min timeout handles that.
-      supabase.rpc('release_session_lock', {
-        p_session_id: sessionId,
-        p_device_id: deviceId
-      });
+      supabase.rpc('release_session_lock', { p_session_id: sessionId, p_device_id: deviceId });
     };
   }, [sessionId]);
 
   const addMessage = (role: 'user' | 'assistant', content: string, thinkingTime?: number, shouldAnimate: boolean = false) => {
     setMessages(prev => [...prev, {
-      id: uuidv4(),
-      role,
-      content,
-      timestamp: new Date(),
-      thinkingTime,
-      shouldAnimate
+      id: uuidv4(), role, content, timestamp: new Date(), thinkingTime, shouldAnimate
     }]);
   };
 
-  // Helper to strip markdown
   const stripMarkdown = (text: string) => {
-    return text
-      .replace(/(\*\*|__)(.*?)\1/g, '$2') // Bold
-      .replace(/(\*|_)(.*?)\1/g, '$2')   // Italic
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Links
-      .replace(/#{1,6}\s?/g, '') // Headers
-      .replace(/`{3}[\s\S]*?`{3}/g, '') // Code blocks
-      .replace(/`(.+?)`/g, '$1') // Inline code
-      .replace(/^\s*>\s?/gm, '') // Blockquotes
-      .trim();
+    return text.replace(/(\*\*|__)(.*?)\1/g, '$2').replace(/(\*|_)(.*?)\1/g, '$2').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/#{1,6}\s?/g, '').replace(/`{3}[\s\S]*?`{3}/g, '').replace(/`(.+?)`/g, '$1').replace(/^\s*>\s?/gm, '').trim();
   };
 
   // --- History Loading ---
   const handleLoadSession = async (id: string, type: 'chat' | 'ehr' = 'chat') => {
-    if (pollIntervalId) {
-      clearInterval(pollIntervalId);
-      setPollIntervalId(null);
-    }
     setSessionId(id);
-    setActiveTab(type); // Switch tab based on session type
-    setPatientData(null); // Clear any EHR data
-    setEhrPhase('chatting'); // Assume we are ready to chat when loading history
-    setMessages([]); // Clear current view
+    setActiveTab(type); 
+    setEhrPhase('chatting'); // Assume ready if loading history
+    setMessages([]); 
     setIsSessionLoading(true);
     setChatTitle("Loading...");
     
     try {
       const tableName = type === 'ehr' ? 'ehr_analyzer_memory' : 'quick_chat_memory';
-      const { data, error } = await supabase
-        .from(tableName)
-        .select('*')
-        .eq('session_id', id)
-        .order('created_at', { ascending: true });
+      const { data, error } = await supabase.from(tableName).select('*').eq('session_id', id).order('created_at', { ascending: true });
 
       if (error) throw error;
 
       if (data && data.length > 0) {
         const loadedMessages: Message[] = [];
-        
         data.forEach((row: any) => {
            let msg = row.message;
+           const safeContent = (c: any) => typeof c === 'string' ? c : (typeof c === 'object' ? JSON.stringify(c) : String(c || ""));
 
-           
-           // Helper to safely extract string content
-           const safeContent = (c: any) => {
-             if (typeof c === 'string') return c;
-             if (typeof c === 'object') return JSON.stringify(c);
-             return String(c || "");
-           };
-
-           // Try to parse string message as JSON if it looks like one
            if (typeof msg === 'string' && (msg.startsWith('{') || msg.startsWith('['))) {
-             try {
-               const parsed = JSON.parse(msg);
-               if (typeof parsed === 'object' && parsed !== null) {
-                 msg = parsed;
-               }
-             } catch (e) {
-               // Keep as string
-             }
+             try { const parsed = JSON.parse(msg); if (typeof parsed === 'object') msg = parsed; } catch (e) {}
            }
-
-           // Special handling for EHR patient data
-           if (type === 'ehr' && msg && typeof msg === 'object' && msg.demographics) {
-             setPatientData(msg);
-             return; // Skip adding this to messages list
-           }
+           // Skip old patientData objects if any
+           if (type === 'ehr' && msg && typeof msg === 'object' && msg.demographics) return;
 
            let role: 'user' | 'assistant' = 'user';
            let content = '';
            let thinkingTime = undefined;
 
-           if (typeof msg === 'string') {
-             content = msg;
-             // Heuristic: if it's a short string, assume user? Or just default to user.
-             role = 'user'; 
-           } else if (typeof msg === 'object' && msg !== null) {
-             // Extract Role
+           if (typeof msg === 'string') { role = 'user'; content = msg; } 
+           else if (typeof msg === 'object' && msg !== null) {
              if (msg.role) role = msg.role;
              else if (msg.type === 'human' || msg.type === 'user') role = 'user';
              else if (msg.type === 'ai' || msg.type === 'assistant') role = 'assistant';
 
-             // Extract Content
              if (msg.content) content = safeContent(msg.content);
              else if (msg.chatInput) { content = safeContent(msg.chatInput); role = 'user'; }
              else if (msg.output) { content = safeContent(msg.output); role = 'assistant'; }
              else if (msg.text) content = safeContent(msg.text);
-             else if (msg.response) { content = safeContent(msg.response); role = 'assistant'; }
-             else if (msg.answer) { content = safeContent(msg.answer); role = 'assistant'; }
-             else if (msg.question) { content = safeContent(msg.question); role = 'user'; }
-             else {
-               // Fallback: dump the whole object so we see something
-               content = JSON.stringify(msg);
-             }
+             else if (msg.message) content = safeContent(msg.message); // Fallback
              
-             // Extract thinking time
              if (msg.thinkingTime) thinkingTime = msg.thinkingTime;
            }
 
-           if (content) {
-              loadedMessages.push({
-                id: row.id.toString(),
-                role,
-                content,
-                timestamp: new Date(row.created_at),
-                thinkingTime
-              });
-           }
+           if (content) loadedMessages.push({ id: row.id.toString(), role, content, timestamp: new Date(row.created_at), thinkingTime });
         });
         
-        console.log("Loaded messages:", loadedMessages);
         setMessages(loadedMessages);
-        
-        // Set title from first user message
         const firstUserMsg = loadedMessages.find(m => m.role === 'user');
-        if (firstUserMsg) {
-           const cleanTitle = stripMarkdown(firstUserMsg.content);
-           setChatTitle(cleanTitle.length > 40 ? cleanTitle.substring(0, 40) + '...' : cleanTitle);
-        } else {
-           setChatTitle("Conversation");
-        }
+        setChatTitle(firstUserMsg ? (stripMarkdown(firstUserMsg.content).substring(0, 40) + '...') : "Conversation");
       } else {
-        // No data found for this session
         setMessages([]);
         setChatTitle("New Chat");
       }
     } catch (err) {
       console.error("Failed to load session:", err);
       addMessage('assistant', "⚠️ Failed to load conversation history.");
-      setChatTitle("Error Loading Chat");
     } finally {
       setIsSessionLoading(false);
     }
   };
 
-  // --- EHR Workflow Steps ---
-  const handleFileLoaded = (data: any) => {
-    setPatientData(data);
-    setChatTitle("Knowledge Base");
+  // --- RAG Callback ---
+  const handleRagComplete = (filename: string) => {
+      // Refresh library to show new book
+      fetchLibrary();
   };
 
-  const handleAnalyze = async () => {
-    if (!patientData) return;
-
-    setEhrPhase('submitting');
-    setIsLoading(true);
-    setRagPhase(1); // Reset to phase 1
-
-    try {
-      const formData = new FormData();
-      // patientData is the File object from FileDropzone
-      formData.append('file', patientData);
-
-      // Start the pipeline
-      const response = await axios.post('/api/rag/process', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      if (response.data.success) {
-        setEhrPhase('polling');
-        
-        // Start polling for status
-        const interval = setInterval(async () => {
-            try {
-                const res = await fetch('http://localhost:8000/status?limit=50');
-                const data = await res.json();
-                const logs = data.logs || [];
-                
-                // Check logs for phase updates
-                // We assume we are processing the file we just uploaded
-                // Simple logic: look for the latest phase in logs
-                let currentPhase = 1;
-                let isComplete = false;
-                
-                // Reverse logs to find latest events first
-                const reversedLogs = [...logs].reverse();
-                
-                for (const log of reversedLogs) {
-                    if (log.includes("PHASE: Embedding") && log.includes("COMPLETED")) {
-                        isComplete = true;
-                        currentPhase = 3;
-                        break;
-                    }
-                    if (log.includes("PHASE: Embedding") && log.includes("STARTED")) {
-                        currentPhase = 3;
-                        break;
-                    }
-                    if (log.includes("PHASE: OCR") && log.includes("STARTED")) {
-                        currentPhase = 2;
-                        break;
-                    }
-                    if (log.includes("PHASE: Split") && log.includes("STARTED")) {
-                        currentPhase = 1;
-                        break;
-                    }
-                }
-                
-                setRagPhase(currentPhase);
-                
-                if (isComplete) {
-                    clearInterval(interval);
-                    setPollIntervalId(null);
-                    setEhrPhase('chatting');
-                    setIsLoading(false);
-                }
-                
-            } catch (e) {
-                console.error("Polling error:", e);
-            }
-        }, 1000);
-        
-        setPollIntervalId(interval);
-
-      } else {
-        throw new Error(response.data.error || 'Unknown error');
-      }
-
-    } catch (error) {
-      console.error(error);
-      addMessage('assistant', t('upload_fail'));
-      setEhrPhase('idle');
-      setIsLoading(false);
-    }
-  };
-
-  // Polling and summary functions removed as they are not needed for the synchronous RAG pipeline
-  const startPolling = () => {}; 
-  const getSummary = async () => {};
-
+  // --- Chat ---
   const handleSendMessage = async (text: string) => {
     if (messages.length === 0) {
        const cleanTitle = stripMarkdown(text);
        setChatTitle(cleanTitle.length > 40 ? cleanTitle.substring(0, 40) + '...' : cleanTitle);
     }
     
+    // Auto-switch to chatting phase if in EHR mode and sending a message
+    if (activeTab === 'ehr' && ehrPhase !== 'chatting') {
+        setEhrPhase('chatting');
+    }
+
     addMessage('user', text);
     setIsLoading(true);
     const startTime = Date.now();
 
     try {
-      let payload: any = {
-        sessionId: sessionId,
-        checkJob: false,
-        deviceId: getDeviceId()
-      };
-
-      if (activeTab === 'ehr' && ehrPhase !== 'chatting') {
-        payload.recordInfo = text;
-      } else {
-        payload.chatInput = text;
-      }
+      let payload: any = { sessionId, checkJob: false, deviceId: getDeviceId() };
+      
+      // In new RAG flow, we assume context is retrieved from Qdrant by the backend based on 'text'
+      // We don't need to send explicit 'recordInfo' unless we are doing direct analysis of a text blob not in Qdrant.
+      // For consistency with old code, we use 'chatInput'
+      payload.chatInput = text;
 
       const response = await axios.post('/api/chat', payload);
       const aiText = extractTextFromResponse(response.data);
-      const duration = Number(((Date.now() - startTime) / 1000).toFixed(1));
+      // Use API's thinking_time if available, otherwise calculate from request duration
+      const duration = response.data.thinking_time ?? Number(((Date.now() - startTime) / 1000).toFixed(1));
       
       addMessage('assistant', aiText, duration, true);
-
     } catch (error) {
       addMessage('assistant', t('connection_error'));
     } finally {
@@ -402,82 +249,44 @@ export default function Home() {
   const handleEditMessage = async (messageId: string, newContent: string) => {
     const msgIndex = messages.findIndex(m => m.id === messageId);
     if (msgIndex === -1) return;
-
     const msg = messages[msgIndex];
-    
-    // Optimistically update UI: Remove this message and all subsequent ones
-    setMessages(prev => prev.slice(0, msgIndex));
+    setMessages(prev => prev.slice(0, msgIndex)); // Optimistic UI
 
-    // Delete from Supabase
     try {
       const tableName = activeTab === 'ehr' ? 'ehr_analyzer_memory' : 'quick_chat_memory';
       let idsToDelete: number[] = [];
-
-      // Check if ID is numeric (from DB)
-      if (!isNaN(Number(messageId))) {
-        idsToDelete.push(Number(messageId));
-        // Try to find the next message (assistant response) in the current list
-        // Note: The next message in the list (index + 1) is the one that followed.
-        const nextMsg = messages[msgIndex + 1];
-        if (nextMsg && !isNaN(Number(nextMsg.id))) {
-           idsToDelete.push(Number(nextMsg.id));
-        }
-      } 
+      if (!isNaN(Number(messageId))) idsToDelete.push(Number(messageId));
       
-      // If we didn't get IDs (or only got some), try to find by content
       if (idsToDelete.length === 0) {
-         const { data: recentMsgs } = await supabase
-            .from(tableName)
-            .select('id, message')
-            .eq('session_id', sessionId)
-            .order('created_at', { ascending: false })
-            .limit(20);
-
+         // Fallback logic to find message by content if ID is ephemeral UUID
+         const { data: recentMsgs } = await supabase.from(tableName).select('id, message').eq('session_id', sessionId).order('created_at', { ascending: false }).limit(20);
          if (recentMsgs) {
-            const targetMsg = recentMsgs.find((row: any) => {
-               const m = row.message;
-               // Check various content fields
-               const content = typeof m === 'string' ? m : (m.content || m.chatInput || m.text || m.question);
-               return content === msg.content;
+            const targetMsg = recentMsgs.find((row : any) => {
+                 const m = row.message;
+                 const content = typeof m === 'string' ? m : (m.content || m.chatInput || m.text);
+                 return content === msg.content;
             });
-
-            if (targetMsg) {
-               idsToDelete.push(targetMsg.id);
-               // The response is likely the one immediately preceding it in the descending list (newer)
-               const targetIndex = recentMsgs.indexOf(targetMsg);
-               if (targetIndex > 0) {
-                  idsToDelete.push(recentMsgs[targetIndex - 1].id);
-               }
-            }
+            if (targetMsg) idsToDelete.push(targetMsg.id);
          }
       }
 
-      if (idsToDelete.length > 0) {
-        await supabase
-          .from(tableName)
-          .delete()
-          .in('id', idsToDelete);
-      }
-    } catch (err) {
-      console.error("Failed to delete old messages:", err);
-    }
+      if (idsToDelete.length > 0) await supabase.from(tableName).delete().in('id', idsToDelete);
+    } catch (err) { console.error("Failed to delete old messages:", err); }
 
-    // Send the new message
     handleSendMessage(newContent);
   };
 
   const extractTextFromResponse = (data: any): string => {
     if (!data) return "No response received.";
     if (typeof data === 'string') return data;
+    if (data.answer) return data.answer; // agentsmedchat API response
     if (data.output) return typeof data.output === 'string' ? data.output : JSON.stringify(data.output);
     if (data.text) return data.text;
     if (data.message) return data.message;
     if (data.content) return data.content;
     const keys = Object.keys(data);
     for (const key of keys) {
-      if (typeof data[key] === 'string' && data[key].length > 0) {
-         return data[key];
-      }
+      if (typeof data[key] === 'string' && data[key].length > 0) return data[key];
     }
     return JSON.stringify(data, null, 2);
   };
@@ -492,32 +301,21 @@ export default function Home() {
           setActiveTab(tab);
           setMessages([]);
           setEhrPhase('idle');
-          setPatientData(null);
-          setSessionId(uuidv4()); // New session on tab switch
+          setSessionId(uuidv4());
           setChatTitle(tab === 'ehr' ? "Knowledge Base" : "New Chat");
-          if (pollIntervalId) {
-             clearInterval(pollIntervalId);
-             setPollIntervalId(null);
-          }
           setIsLoading(false);
         }}
         onLoadSession={handleLoadSession}
         currentSessionId={sessionId}
       />
 
-      <div className={clsx(
-        "flex-1 flex flex-col h-full relative transition-all duration-300 ease-in-out",
-        isSidebarOpen ? "md:ml-72" : "md:ml-16"
-      )}>
+      <div className={clsx("flex-1 flex flex-col h-full relative transition-all duration-300 ease-in-out", isSidebarOpen ? "md:ml-72" : "md:ml-16")}>
         
         {/* Chat Header */}
         <header className="sticky top-0 z-10 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
            <div className="w-full px-4 h-16 flex items-center justify-between relative">
                <div className="flex items-center gap-3 text-muted-foreground hover:text-foreground transition-colors">
-                  <button 
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="md:hidden p-1 hover:bg-muted rounded-full"
-                  >
+                  <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden p-1 hover:bg-muted rounded-full">
                     <Menu size={24} />
                   </button>
                   <span className="text-lg font-medium cursor-pointer">MedChat</span>
@@ -529,15 +327,10 @@ export default function Home() {
 
               <div className="flex items-center gap-3">
                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-red-500 p-[2px]">
-                    <img 
-                      src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" 
-                      className="rounded-full w-full h-full bg-background object-cover" 
-                      alt="User" 
-                    />
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" className="rounded-full w-full h-full bg-background object-cover" alt="User" />
                  </div>
               </div>
               
-              {/* Horizontal Loading Bar */}
               {isSessionLoading && (
                 <div className="absolute bottom-0 left-0 w-full h-[2px] bg-muted overflow-hidden">
                   <div className="h-full bg-primary animate-progress-indeterminate origin-left"></div>
@@ -549,42 +342,25 @@ export default function Home() {
         <main className="flex-1 overflow-y-auto scroll-smooth">
           <div className="max-w-3xl mx-auto w-full px-4 py-6 md:py-10">
             
-            {/* Gem Header for EHR Mode */}
-            {activeTab === 'ehr' && messages.length === 0 && !patientData && (
-               <div className="flex flex-col items-center justify-center mb-10 animate-in fade-in slide-in-from-bottom-4">
-                  <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-cyan-600 rounded-2xl flex items-center justify-center shadow-lg mb-4">
-                     <Gem size={32} className="text-white" />
-                  </div>
-                  <h1 className="text-3xl font-medium text-foreground">{t('ehr_analysis')}</h1>
-                  <p className="text-muted-foreground mt-2 text-center max-w-md">
-                     {t('virtual_doctor')}
-                  </p>
-               </div>
+            {/* --- RAG / EHR MODE UI --- */}
+            {activeTab === 'ehr' && messages.length === 0 && (
+                <div className="flex flex-col w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center justify-center mb-8">
+                        <div className="inline-flex items-center gap-2 mb-3 px-3 py-1 rounded-full bg-secondary/50 border border-border/50 backdrop-blur-sm">
+                            <Sparkles className="w-3 h-3 text-accent-foreground" />
+                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Gemini RAG Processor</span>
+                        </div>
+                        <h1 className="text-3xl font-medium text-foreground text-center">Knowledge Ingestion</h1>
+                    </motion.div>
+
+                    <RagIngestion onComplete={handleRagComplete} />
+
+                    <RagLibrary books={books} stats={libraryStats} isLoading={isLibraryLoading} />
+                </div>
             )}
 
-              {activeTab === 'ehr' && (patientData || messages.length === 0) && (
-                <DocumentCard 
-                  data={patientData} 
-                  onFileLoaded={handleFileLoaded} 
-                  onAnalyze={handleAnalyze}
-                  onDelete={() => {
-                    setPatientData(null);
-                    setChatTitle("Knowledge Base");
-                    setEhrPhase('idle');
-                  }}
-                  isAnalyzing={ehrPhase !== 'idle' && ehrPhase !== 'chatting'}
-                  status={ehrPhase === 'chatting' ? t('ready') : undefined}
-                />
-              )}
-
-              {/* RAG Pipeline Visualizer */}
-              {activeTab === 'ehr' && (ehrPhase === 'submitting' || ehrPhase === 'polling') && (
-                 <div className="mb-8 flex justify-center w-full">
-                    <RagPipelineVisualizer currentPhase={ragPhase} isLoading={ehrPhase === 'polling' || ehrPhase === 'submitting'} />
-                 </div>
-              )}
-
-            {messages.length === 0 && !patientData && activeTab === 'chat' && !isSessionLoading && (
+            {/* --- NEW CHAT HERO (Regular Chat) --- */}
+            {messages.length === 0 && activeTab === 'chat' && !isSessionLoading && (
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full -mt-24 w-full max-w-3xl px-8 flex flex-col items-start space-y-2">
                 <div className="space-y-2 text-left">
                   <h1 className="text-5xl font-medium bg-gradient-to-r from-[#4285f4] via-[#9b72cb] to-[#d96570] text-transparent bg-clip-text pb-2">
@@ -597,11 +373,10 @@ export default function Home() {
               </div>
             )}
 
+            {/* --- CHAT MESSAGES --- */}
             <div className="space-y-2 pb-40">
               {messages.map((msg, index) => {
-                // Find the last user message to only show edit button there
                 const lastUserMessageId = [...messages].reverse().find(m => m.role === 'user')?.id;
-                
                 return (
                   <MessageBubble 
                     key={msg.id} 
@@ -613,33 +388,24 @@ export default function Home() {
                 );
               })}
               
-              {isLoading && activeTab !== 'ehr' && (
+              {isLoading && (
                 <div className="flex items-start gap-4 mb-6 w-full max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300">
-                   <div className="flex items-center gap-3">
-                     <div className="text-sm text-muted-foreground animate-pulse">
-                       {t('thinking')}
-                     </div>
-                     <div className="loader3">
-                       <div className="circle1"></div>
-                       <div className="circle1"></div>
-                       <div className="circle1"></div>
-                       <div className="circle1"></div>
-                       <div className="circle1"></div>
-                     </div>
-                   </div>
+                   {activeTab === 'ehr' ? (
+                       <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                              <Sparkles size={16} className="text-accent animate-pulse" />
+                              <ThinkingText />
+                          </div>
+                      </div>
+                   ) : (
+                       <div className="flex items-center gap-3">
+                         <div className="text-sm text-muted-foreground animate-pulse">{t('thinking')}</div>
+                         <div className="loader3">
+                           <div className="circle1"></div><div className="circle1"></div><div className="circle1"></div><div className="circle1"></div><div className="circle1"></div>
+                         </div>
+                       </div>
+                   )}
                 </div>
-              )}
-              
-              {/* Show thinking for EHR chat only after initial analysis is done */}
-              {isLoading && activeTab === 'ehr' && ehrPhase === 'chatting' && (
-                 <div className="flex items-start gap-4 mb-6 w-full max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-tr from-blue-500 to-red-500 animate-pulse">
-                       <Gem size={16} className="text-white" />
-                    </div>
-                    <div className="flex flex-col gap-2 pt-1.5">
-                       <ThinkingText />
-                    </div>
-                 </div>
               )}
               <div ref={messagesEndRef} />
             </div>
@@ -649,19 +415,21 @@ export default function Home() {
 
         <div className={clsx(
           "transition-all duration-500 ease-in-out w-full max-w-3xl mx-auto px-4",
-          (messages.length === 0 && !patientData && activeTab === 'chat') 
+          (messages.length === 0 && activeTab === 'chat') 
             ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" 
-            : "absolute bottom-0 left-1/2 -translate-x-1/2 bg-background pb-2 pt-2"
+            : "absolute bottom-0 left-1/2 -translate-x-1/2 bg-background pb-2 pt-2",
+          // Hide input area in EHR mode if we haven't started chatting yet
+          (activeTab === 'ehr' && messages.length === 0) && "translate-y-[200%] opacity-0 pointer-events-none"
         )}>
-          {/* Only show input area if NOT in EHR/Knowledge Base mode OR if we are in chatting phase */}
-          {(activeTab !== 'ehr' || ehrPhase === 'chatting') && (
-            <InputArea 
+          {/* Show input if we are chatting OR if we are in regular chat. 
+              We hide it initially in EHR mode since we use the Ingestion UI.
+           */}
+          <InputArea 
               ref={inputAreaRef}
               onSend={handleSendMessage} 
               disabled={isLoading} 
-              placeholder={t('enter_prompt')}
+              placeholder={activeTab === 'ehr' ? "Ask your Knowledge Base..." : t('enter_prompt')}
             />
-          )}
         </div>
 
       </div>

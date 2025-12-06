@@ -59,27 +59,27 @@ export function Sidebar({ isOpen, onToggle, activeTab, onTabChange, onLoadSessio
       if (pageNum === 0) setIsLoading(true);
       else setIsLoadingMore(true);
 
-      // Get all sessions first, then paginate
-      const [chatData, ehrData] = await Promise.all([
-        supabase
-          .from('quick_chat_memory')
-          .select('session_id, message, created_at')
-          .order('created_at', { ascending: true }),
-        supabase
-          .from('ehr_analyzer_memory')
-          .select('session_id, message, created_at')
-          .order('created_at', { ascending: true })
-      ]);
+      // Fetch from new unified chat_history table
+      const { data, error } = await supabase
+          .from('chat_history')
+          .select('session_id, role, content, created_at, metadata')
+          .order('created_at', { ascending: true });
 
-      if (chatData.error) throw chatData.error;
-      if (ehrData.error) throw ehrData.error;
+      if (error) {
+        console.error("Supabase fetch error details:", error);
+        // Don't throw, handling gracefully
+        setRecentSessions([]);
+        return;
+      }
+      
+      console.log('Raw History Data:', data);
 
-      console.log(`Fetched history: Chat=${chatData.data?.length || 0}, EHR=${ehrData.data?.length || 0}`);
-
-      const allData = [
-        ...(chatData.data || []).map((d: any) => ({ ...d, type: 'chat' })),
-        ...(ehrData.data || []).map((d: any) => ({ ...d, type: 'ehr' }))
-      ];
+      const allData = (data || []).map((d: any) => ({
+        ...d,
+        // Adapt string columns 'role'/'content' to the object structure expected by logic
+        message: { role: d.role, content: d.content }, 
+        type: d.metadata?.type || 'chat'
+      }));
 
       if (allData.length === 0) {
          setHasMore(false);
@@ -236,11 +236,9 @@ export function Sidebar({ isOpen, onToggle, activeTab, onTabChange, onLoadSessio
 
   const confirmDelete = async (sessionId: string) => {
     try {
-      const session = recentSessions.find(s => s.session_id === sessionId);
-      const tableName = session?.type === 'ehr' ? 'ehr_analyzer_memory' : 'quick_chat_memory';
-
+      // Use unified table
       const { error } = await supabase
-        .from(tableName)
+        .from('chat_history')
         .delete()
         .eq('session_id', sessionId);
 

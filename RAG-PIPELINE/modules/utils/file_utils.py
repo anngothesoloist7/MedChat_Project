@@ -18,47 +18,15 @@ def get_filename_from_cd(cd):
     fname = re.findall('filename=(.+)', cd)
     return fname[0].strip().strip('"') if fname else None
 
-def shorten_filename(filename: str, file_id: str = "0000", max_length: int = 100) -> str:
+def clean_filename(filename: str) -> str:
+    """Sanitize filename by removing invalid characters."""
+    # Remove "Copy of" prefix often added by Drive
     if filename.startswith("Bản sao của "): filename = filename[12:]
+    elif filename.startswith("Copy of "): filename = filename[8:]
+    
+    # Remove invalid fs chars
     filename = re.sub(r'[\\/*?:"<>|]', "", filename)
-    name_without_ext = filename.rsplit('.', 1)[0] if '.' in filename else filename
-    ext = '.pdf'
-    
-    parts = name_without_ext.replace(' -- ', '|').split('|')
-    if parts:
-        title = parts[0].strip()
-        year, edition = None, None
-        
-        for part in parts:
-            for word in part.strip().split():
-                clean = word.strip('(),')
-                if len(clean) == 4 and clean.isdigit():
-                    year = clean; break
-            if year: break
-            
-        for part in parts:
-            part_lower = part.lower().strip()
-            if any(w.rstrip('stndrh,').isdigit() for w in part.split()):
-                for w in part.split():
-                    if w.rstrip('stndrh,').isdigit(): edition = w.rstrip('stndrh,'); break
-            elif 'edition' in part_lower:
-                if 'twentieth' in part_lower: edition = '20th'
-                elif 'eleventh' in part_lower: edition = '11th'
-                elif 'fourteenth' in part_lower: edition = '14th'
-                elif 'thirteenth' in part_lower: edition = '13th'
-            if edition: break
-        
-        short_parts = [title[:60].rsplit(' ', 1)[0] if len(title) > 60 else title]
-        if edition: short_parts.append(f"{edition}ed")
-        if year: short_parts.append(year)
-        
-        base = ' '.join(short_parts)
-        suffix = f" {file_id[-4:]}"
-        avail = max_length - len(ext) - len(suffix)
-        if len(base) > avail: base = base[:avail].rsplit(' ', 1)[0]
-        return f"{base}{suffix}{ext}"
-    
-    return f"{file_id}{ext}"
+    return filename.strip()
 
 def download_file(url: str, output_dir: str = "downloads") -> str:
     os.makedirs(output_dir, exist_ok=True)
@@ -66,25 +34,21 @@ def download_file(url: str, output_dir: str = "downloads") -> str:
     if "drive.google.com" in url:
         print(f"[INFO] Downloading from Drive: {url}")
         try:
-            file_id = hashlib.md5(url.encode()).hexdigest()[:8]
-            temp_path = os.path.join(output_dir, f"temp_{file_id}.pdf")
+            # gdown with output=None will download to CWD using the original filename
+            downloaded_path = gdown.download(url, output=None, quiet=False, fuzzy=True, use_cookies=False)
+            if not downloaded_path: raise Exception("gdown failed to return a path.")
             
-            out = gdown.download(url, output=temp_path, quiet=False, fuzzy=True, use_cookies=False)
-            if not out: raise Exception("gdown failed.")
+            # Get the filename gdown determined
+            original_fname = os.path.basename(downloaded_path)
+            cleaned_fname = clean_filename(original_fname)
             
-            original = f"document_{file_id}.pdf"
-            try:
-                from pypdf import PdfReader
-                reader = PdfReader(out)
-                if reader.metadata and reader.metadata.title:
-                    t = reader.metadata.title.strip()
-                    if t: original = f"{t}.pdf"
-            except Exception as e: print(f"[WARN] Metadata error: {e}")
-
-            final_path = os.path.join(output_dir, shorten_filename(original, file_id=file_id))
-            if os.path.abspath(out) != os.path.abspath(final_path):
-                if os.path.exists(final_path): os.remove(final_path)
-                os.rename(out, final_path)
+            final_path = os.path.join(output_dir, cleaned_fname)
+            
+            # Move from CWD to output_dir
+            # If downloaded_path is already absolute/relative to CWD, move it.
+            if os.path.abspath(downloaded_path) != os.path.abspath(final_path):
+                shutil.move(downloaded_path, final_path)
+                
             return os.path.abspath(final_path)
             
         except Exception as e:
@@ -102,8 +66,12 @@ def download_file(url: str, output_dir: str = "downloads") -> str:
                 parsed = urlparse(url)
                 fname = os.path.basename(unquote(parsed.path)) or "downloaded_file.pdf"
                 
-            file_id = hashlib.md5(url.encode()).hexdigest()[:8]
-            final_path = os.path.join(output_dir, shorten_filename(fname, file_id=file_id))
+            # No random IDs, just clean the name
+            cleaned_fname = clean_filename(fname)
+            if not cleaned_fname.lower().endswith('.pdf'):
+                cleaned_fname += '.pdf'
+
+            final_path = os.path.join(output_dir, cleaned_fname)
             
             with open(final_path, 'wb') as f:
                 for chunk in res.iter_content(chunk_size=8192):

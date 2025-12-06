@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Optional
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException, Form, WebSocket
 from pydantic import BaseModel
+from qdrant_client import QdrantClient, models
 import asyncio
 import json
 
@@ -52,6 +53,163 @@ class PipelineRequest(BaseModel):
 def read_root():
     return {"message": "MedChat RAG Pipeline API is running"}
 
+@app.get("/library")
+def get_library():
+    """Fetch list of indexed books from Qdrant by scanning all points."""
+    try:
+        client = QdrantClient(url=Config.QDRANT_URL, port=443, api_key=Config.QDRANT_API_KEY)
+        
+        if not client.collection_exists(Config.COLLECTION_NAME):
+             return {"books": [], "stats": {"keyword_distribution": {}, "language_distribution": {}, "avg_chunk_length": 0}}
+
+        books_map = {}
+        keyword_counts = {"disease": 0, "symptom": 0, "treatment": 0, "drug": 0, "imaging": 0, "lab-test": 0}
+        language_counts = {}
+        total_text_length = 0
+        chunk_count = 0
+        
+        next_offset = None
+        import re
+        
+        # Scan ALL points to get accurate stats and book list
+        while True:
+            points, next_offset = client.scroll(
+                collection_name=Config.COLLECTION_NAME,
+                limit=1000, 
+                offset=next_offset,
+                with_payload=["book_name", "author", "publish_year", "keywords", "language", "text", "pdf_id"],
+                with_vectors=False
+            )
+            
+            for point in points:
+                payload = point.payload or {}
+                raw_book_name = payload.get("book_name")
+                if not raw_book_name: continue
+                
+                # Normalize book name to group split parts together
+                # Removes suffixes like (1-342), (343-600), (1)
+                book_name = re.sub(r'\(\d+(-\d+)?\)$', '', raw_book_name).strip()
+                
+                chunk_count += 1
+                
+                # Stats: Keywords
+                keywords = payload.get("keywords", [])
+                for kw in keywords:
+                    kw_lower = kw.lower().strip()
+                    if kw_lower in keyword_counts:
+                        keyword_counts[kw_lower] += 1
+                
+                # Stats: Language
+                lang = payload.get("language", "unknown")
+                if lang:
+                    lang_lower = lang.lower().strip()
+                    language_counts[lang_lower] = language_counts.get(lang_lower, 0) + 1
+                
+                # Stats: Length
+                text_len = len(payload.get("text", ""))
+                total_text_length += text_len
+                
+                # Book Aggregation
+                if book_name not in books_map:
+                    raw_year = str(payload.get("publish_year", "Unknown"))
+                    books_map[book_name] = {
+                        "id": book_name, # Use normalized name as ID for grouping
+                        "pdf_id": payload.get("pdf_id", "unknown"),
+                        "title": book_name,
+                        "author": payload.get("author", "Unknown"),
+                        "year": raw_year,
+                        "keywords": keywords[:4],
+                        "stats": {
+                            "qdrantPoints": 0, 
+                            "avgChunkLength": 1000 # Placeholder
+                        }
+                    }
+                
+                books_map[book_name]["stats"]["qdrantPoints"] += 1
+
+            if next_offset is None:
+                break
+        
+        books = list(books_map.values())
+        
+        # Calculate global average chunk length
+        avg_chunk_length = int(total_text_length / chunk_count) if chunk_count > 0 else 0
+        
+        # Update books stats with averages if needed, or keeping it simple
+        # Estimate total collection size
+        total_points_count = chunk_count
+        estimated_total_bytes = total_points_count * (6144 + avg_chunk_length)
+            
+        return {
+            "books": books,
+            "stats": {
+                "keyword_distribution": keyword_counts,
+                "language_distribution": language_counts,
+                "avg_chunk_length": avg_chunk_length,
+                "total_size_bytes": estimated_total_bytes
+            }
+        }
+        
+    except Exception as e:
+        print(f"[ERROR] Fetching library: {e}")
+        return {"books": [], "stats": {"keyword_distribution": {}, "language_distribution": {}, "avg_chunk_length": 0}}
+
+@app.delete("/library/{pdf_id}")
+def delete_book(pdf_id: str):
+    """Delete a book from the index using its pdf_id."""
+    try:
+        client = QdrantClient(url=Config.QDRANT_URL, port=443, api_key=Config.QDRANT_API_KEY)
+        
+        if not client.collection_exists(Config.COLLECTION_NAME):
+            raise HTTPException(status_code=404, detail="Collection not found")
+
+        # Delete points with matching pdf_id
+        client.delete(
+            collection_name=Config.COLLECTION_NAME,
+            points_selector=models.FilterSelector(
+                filter=models.Filter(must=[models.FieldCondition(key="pdf_id", match=models.MatchValue(value=pdf_id))])
+            )
+        )
+        return {"message": f"Book with pdf_id '{pdf_id}' deleted successfully"}
+        
+    except Exception as e:
+        print(f"[ERROR] Deleting book {pdf_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/vectors")
+def get_vectors(limit: int = 200):
+    """Fetch vectors with metadata for UMAP visualization."""
+    try:
+        client = QdrantClient(url=Config.QDRANT_URL, port=443, api_key=Config.QDRANT_API_KEY)
+        
+        if not client.collection_exists(Config.COLLECTION_NAME):
+            return {"vectors": [], "points": []}
+        
+        # Scroll through points WITH vectors
+        result, _ = client.scroll(
+            collection_name=Config.COLLECTION_NAME,
+            limit=limit,
+            with_vectors=["dense"],
+            with_payload=["book_name", "keywords"]
+        )
+        
+        vectors = []
+        points = []
+        
+        for point in result:
+            if point.vector and "dense" in point.vector:
+                vectors.append(point.vector["dense"])
+                points.append({
+                    "book": point.payload.get("book_name", "Unknown") if point.payload else "Unknown",
+                    "keywords": point.payload.get("keywords", []) if point.payload else []
+                })
+        
+        return {"vectors": vectors, "points": points}
+        
+    except Exception as e:
+        print(f"[ERROR] Fetching vectors: {e}")
+        return {"vectors": [], "points": [], "error": str(e)}
+
 @app.get("/status")
 def get_status(limit: int = 50):
     """Get the last N lines from the pipeline log."""
@@ -83,6 +241,15 @@ class ConnectionManager:
             await connection.send_json(message)
 
 manager = ConnectionManager()
+
+@app.websocket("/ws/pipeline")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except Exception:
+        manager.disconnect(websocket)
 
 # --- Patch Pipeline Logger for WebSocket ---
 pipeline_logger_instance = rag_main.pipeline_logger
@@ -237,14 +404,7 @@ EXISTING_FILES_MOCK = ["machine_learning_101.pdf", "medical_handbook.pdf"]
 
 
 
-@app.websocket("/ws/pipeline")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            await websocket.receive_text()
-    except Exception:
-        manager.disconnect(websocket)
+
 
 async def run_mock_pipeline_task(filename: str, overwrite: bool):
     """Giả lập pipeline chạy"""
