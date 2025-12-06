@@ -66,7 +66,10 @@ export function Sidebar({ isOpen, onToggle, activeTab, onTabChange, onLoadSessio
           .order('created_at', { ascending: true });
 
       if (error) {
-        console.error("Supabase fetch error details:", error);
+        console.error("Supabase fetch error details:", JSON.stringify(error, null, 2));
+        if (error.code === '42P01') {
+             console.error("Table 'chat_history' does not exist. Please run the setup SQL.");
+        }
         // Don't throw, handling gracefully
         setRecentSessions([]);
         return;

@@ -149,46 +149,22 @@ export default function Home() {
     setChatTitle("Loading...");
     
     try {
-      const tableName = type === 'ehr' ? 'ehr_analyzer_memory' : 'quick_chat_memory';
-      const { data, error } = await supabase.from(tableName).select('*').eq('session_id', id).order('created_at', { ascending: true });
+      // Unified table
+      const { data, error } = await supabase.from('chat_history').select('*').eq('session_id', id).order('created_at', { ascending: true });
 
       if (error) throw error;
 
       if (data && data.length > 0) {
-        const loadedMessages: Message[] = [];
-        data.forEach((row: any) => {
-           let msg = row.message;
-           const safeContent = (c: any) => typeof c === 'string' ? c : (typeof c === 'object' ? JSON.stringify(c) : String(c || ""));
-
-           if (typeof msg === 'string' && (msg.startsWith('{') || msg.startsWith('['))) {
-             try { const parsed = JSON.parse(msg); if (typeof parsed === 'object') msg = parsed; } catch (e) {}
-           }
-           // Skip old patientData objects if any
-           if (type === 'ehr' && msg && typeof msg === 'object' && msg.demographics) return;
-
-           let role: 'user' | 'assistant' = 'user';
-           let content = '';
-           let thinkingTime = undefined;
-
-           if (typeof msg === 'string') { role = 'user'; content = msg; } 
-           else if (typeof msg === 'object' && msg !== null) {
-             if (msg.role) role = msg.role;
-             else if (msg.type === 'human' || msg.type === 'user') role = 'user';
-             else if (msg.type === 'ai' || msg.type === 'assistant') role = 'assistant';
-
-             if (msg.content) content = safeContent(msg.content);
-             else if (msg.chatInput) { content = safeContent(msg.chatInput); role = 'user'; }
-             else if (msg.output) { content = safeContent(msg.output); role = 'assistant'; }
-             else if (msg.text) content = safeContent(msg.text);
-             else if (msg.message) content = safeContent(msg.message); // Fallback
-             
-             if (msg.thinkingTime) thinkingTime = msg.thinkingTime;
-           }
-
-           if (content) loadedMessages.push({ id: row.id.toString(), role, content, timestamp: new Date(row.created_at), thinkingTime });
-        });
+        const loadedMessages: Message[] = data.map((row: any) => ({
+            id: row.id.toString(),
+            role: row.role as 'user' | 'assistant',
+            content: row.content,
+            timestamp: new Date(row.created_at),
+            thinkingTime: row.thinking_time
+        }));
         
         setMessages(loadedMessages);
+        
         const firstUserMsg = loadedMessages.find(m => m.role === 'user');
         setChatTitle(firstUserMsg ? (stripMarkdown(firstUserMsg.content).substring(0, 40) + '...') : "Conversation");
       } else {
@@ -197,7 +173,10 @@ export default function Home() {
       }
     } catch (err) {
       console.error("Failed to load session:", err);
-      addMessage('assistant', "⚠️ Failed to load conversation history.");
+      // addMessage('assistant', "⚠️ Failed to load conversation history."); 
+      // Silent fail is better than showing error message on empty new sessions if the ID just doesn't exist
+      setMessages([]);
+      setChatTitle("New Chat");
     } finally {
       setIsSessionLoading(false);
     }
@@ -253,24 +232,19 @@ export default function Home() {
     setMessages(prev => prev.slice(0, msgIndex)); // Optimistic UI
 
     try {
-      const tableName = activeTab === 'ehr' ? 'ehr_analyzer_memory' : 'quick_chat_memory';
       let idsToDelete: number[] = [];
       if (!isNaN(Number(messageId))) idsToDelete.push(Number(messageId));
       
       if (idsToDelete.length === 0) {
          // Fallback logic to find message by content if ID is ephemeral UUID
-         const { data: recentMsgs } = await supabase.from(tableName).select('id, message').eq('session_id', sessionId).order('created_at', { ascending: false }).limit(20);
+         const { data: recentMsgs } = await supabase.from('chat_history').select('id, content').eq('session_id', sessionId).order('created_at', { ascending: false }).limit(20);
          if (recentMsgs) {
-            const targetMsg = recentMsgs.find((row : any) => {
-                 const m = row.message;
-                 const content = typeof m === 'string' ? m : (m.content || m.chatInput || m.text);
-                 return content === msg.content;
-            });
+            const targetMsg = recentMsgs.find((row : any) => row.content === msg.content);
             if (targetMsg) idsToDelete.push(targetMsg.id);
          }
       }
 
-      if (idsToDelete.length > 0) await supabase.from(tableName).delete().in('id', idsToDelete);
+      if (idsToDelete.length > 0) await supabase.from('chat_history').delete().in('id', idsToDelete);
     } catch (err) { console.error("Failed to delete old messages:", err); }
 
     handleSendMessage(newContent);

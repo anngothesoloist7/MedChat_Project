@@ -50,6 +50,33 @@ export function MessageBubble({
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(message.content);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isThoughtOpen, setIsThoughtOpen] = useState(false);
+
+  // Parse Thought Block and Main Content
+  const { thought, mainContent } = React.useMemo(() => {
+    if (isUser) return { thought: null, mainContent: message.content };
+
+    // Pattern 1: "Thought for X s\n..."
+    const thoughtRegex = /^Thought for ([\d\.]+)s\s*\n([\s\S]*?)(\n\n|$)/;
+    const match = message.content.match(thoughtRegex);
+    if (match) {
+      return {
+        thought: { duration: parseFloat(match[1]).toFixed(1), text: match[2].trim() },
+        mainContent: message.content.substring(match[0].length).trim()
+      };
+    }
+
+    // Pattern 2: <thought> tags
+    const tagMatch = message.content.match(/<thought>([\s\S]*?)<\/thought>/);
+    if (tagMatch) {
+      return {
+        thought: { duration: null, text: tagMatch[1].trim() },
+        mainContent: message.content.replace(tagMatch[0], "").trim()
+      };
+    }
+
+    return { thought: null, mainContent: message.content };
+  }, [message.content, isUser]);
 
   const preprocessContent = (text: string) => {
     // 1. Unescape HTML tags (e.g. \<sup\> -> <sup>)
@@ -96,10 +123,8 @@ export function MessageBubble({
       /<a id="(ref[\w-]+)">\d+\.<\/a>\s*([\s\S]*?)(?=(?:<a id="ref)|$)/g;
 
     let match;
-    // We parse the raw message content, not the preprocessed one,
-    // because the preprocessed one might have altered links but the reference definitions should be stable.
-    // However, the reference definitions are usually at the end.
-    while ((match = regex.exec(message.content)) !== null) {
+    // We update to parse mainContent to avoid picking up stuff from thought block if any
+    while ((match = regex.exec(mainContent)) !== null) {
       const id = match[1];
       let text = match[2].trim();
       // Cleanup any trailing HTML tags if they were captured (like <br> or </div>)
@@ -107,20 +132,21 @@ export function MessageBubble({
       map[id] = text;
     }
     return map;
-  }, [message.content]);
+  }, [mainContent]);
 
   const [displayedContent, setDisplayedContent] = useState(
-    message.shouldAnimate && !isUser ? "" : preprocessContent(message.content)
+    message.shouldAnimate && !isUser ? "" : preprocessContent(mainContent)
   );
 
   useEffect(() => {
+    // If we're not streaming or it's user, show full content immediately
     if (!message.shouldAnimate || isUser) {
-      setDisplayedContent(preprocessContent(message.content));
+      setDisplayedContent(preprocessContent(mainContent));
       return;
     }
 
     let index = 0;
-    const text = preprocessContent(message.content);
+    const text = preprocessContent(mainContent);
 
     // If text is already fully displayed (e.g. re-render), don't restart
     if (displayedContent === text) return;
@@ -140,7 +166,7 @@ export function MessageBubble({
 
     return () => clearInterval(intervalId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [message.content, message.shouldAnimate, isUser]);
+  }, [mainContent, message.shouldAnimate, isUser]);
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -189,14 +215,42 @@ export function MessageBubble({
           isUser && !isEditing ? "max-w-[85%] items-end" : "w-full items-start"
         )}
       >
-        {/* Thinking Time Header */}
-        {!isUser && message.thinkingTime && (
-          <div className="flex items-center gap-2 mb-2 text-muted-foreground text-sm pl-0">
-            <Sparkles size={16} className="text-blue-400 fill-blue-400/20" />
-            <span>
-              {t("thought_for")} {message.thinkingTime}s
-            </span>
+        {/* Thinking Block */}
+        {!isUser && thought && (
+          <div className="mb-3">
+             <button 
+                onClick={() => setIsThoughtOpen(!isThoughtOpen)}
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm pl-0 group transition-colors focus:outline-none"
+                title={isThoughtOpen ? "Hide reasoning" : "Show reasoning"}
+             >
+                <Sparkles size={16} className={clsx("text-blue-400 fill-blue-400/20 transition-all duration-300", isThoughtOpen ? "scale-110" : "scale-100")} />
+                <span className="font-medium bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  {t("thought_for") || "Thought for"} {thought.duration ? `${thought.duration}s` : "..."}
+                </span>
+             </button>
+             
+             {isThoughtOpen && (
+                 <motion.div 
+                    initial={{ opacity: 0, height: 0 }} 
+                    animate={{ opacity: 1, height: "auto" }}
+                    className="mt-2 pl-4 border-l-2 border-primary/20 overflow-hidden"
+                 >
+                     <div className="py-2 text-sm text-muted-foreground/90 italic whitespace-pre-wrap font-serif leading-relaxed bg-muted/30 p-3 rounded-r-lg">
+                         {thought.text}
+                     </div>
+                 </motion.div>
+             )}
           </div>
+        )}
+        
+        {/* Fallback for simple 'Thinking Time' if no detailed thought provided in text but exists in metadata */}
+        {!isUser && !thought && message.thinkingTime && (
+            <div className="flex items-center gap-2 mb-2 text-muted-foreground text-sm pl-0">
+                <Sparkles size={16} className="text-blue-400 fill-blue-400/20" />
+                <span>
+                    {t("thought_for") || "Thought for"} {message.thinkingTime}s
+                </span>
+            </div>
         )}
 
         {/* Message Content */}
