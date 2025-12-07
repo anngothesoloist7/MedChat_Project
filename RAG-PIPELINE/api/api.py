@@ -107,6 +107,7 @@ def get_library():
                         "author": payload.get("author", "Unknown"),
                         "year": raw_year,
                         "keywords": keywords[:4],
+                        "language": lang,
                         "stats": {
                             "qdrantPoints": 0, 
                             "avgChunkLength": 1000 # Placeholder

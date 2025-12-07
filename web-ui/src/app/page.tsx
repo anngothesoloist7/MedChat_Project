@@ -338,7 +338,7 @@ export default function Home() {
                 <div className="flex flex-col w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
                     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center justify-center mb-8">
                         <div className="inline-flex items-center gap-2 mb-3 px-3 py-1 rounded-full bg-secondary/50 border border-border/50 backdrop-blur-sm">
-                            <Sparkles className="w-3 h-3 text-accent-foreground" />
+                            <Sparkles className="w-3 h-3 text-[#3ECF8E]" />
                             <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">{t('rag.processor')}</span>
                         </div>
                         <h1 className="text-3xl font-medium text-foreground text-center">{t('rag.title')}</h1>

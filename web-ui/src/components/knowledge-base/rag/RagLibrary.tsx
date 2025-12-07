@@ -7,7 +7,7 @@ import { clsx } from 'clsx';
 import { useSettings } from '@/context/SettingsContext';
 import { Book } from './types';
 import { StatCard } from './StatCard';
-import { LabelDistributionChart, LanguageDistributionChart } from './ChartComponents';
+import { LabelDistributionChart, LanguageDistributionChart, TrendLineChart } from './ChartComponents';
 import VectorDashboard from './VectorDashboard';
 
 // Color palettes for UMAP scatter
@@ -229,11 +229,33 @@ export const RagLibrary: React.FC<RagLibraryProps> = ({ books, stats, isLoading 
         percentage: Math.round((keywordData[i] / totalKeywords) * 100)
     }));
 
-    // Pie chart data for languages
-    const languageChartData = Object.entries(stats?.language_distribution || {})
+    // Pie chart data for languages - document based
+    const languageCounts: Record<string, number> = {};
+    
+    // If no explicit language found, we can't really plot meaningful doc distribution
+    // But we need to try.
+    books.forEach(b => {
+        // Safe access, prioritizing root language field from API
+        let lang = b.language || (b as any).metadata?.language;
+        
+        // Normalize
+        if (!lang) lang = "Unknown";
+        if (lang === 'vi' || lang === 'vietnamese') lang = 'Vietnamese';
+        else if (lang === 'en' || lang === 'english') lang = 'English';
+        
+        // Capitalize
+        lang = lang.charAt(0).toUpperCase() + lang.slice(1);
+        
+        languageCounts[lang] = (languageCounts[lang] || 0) + 1;
+    });
+
+    const totalDocsCalculated = books.length || 1;
+
+    const languageChartData = Object.entries(languageCounts)
         .map(([name, value]) => ({
-            name: name.charAt(0).toUpperCase() + name.slice(1),
-            value
+            name,
+            value,
+            percentage: Math.round((value / totalDocsCalculated) * 100)
         }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 5);
@@ -279,7 +301,7 @@ export const RagLibrary: React.FC<RagLibraryProps> = ({ books, stats, isLoading 
 
             {viewMode === 'list' && (
                 <div className="flex items-center gap-2 mb-6">
-                    <div className="h-4 w-1 bg-accent rounded-full" />
+                    <div className="h-4 w-1 bg-[#3ECF8E] rounded-full" />
                     <div className="flex items-center gap-2 h-full">
                          <h2 className="text-sm font-semibold tracking-tight uppercase text-muted-foreground leading-none">
                             {t('rag.doc_list')}
@@ -329,7 +351,7 @@ export const RagLibrary: React.FC<RagLibraryProps> = ({ books, stats, isLoading 
                     {/* Document Insight Header with Full Width Toggle */}
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
-                            <div className="h-4 w-1 bg-accent rounded-full" />
+                            <div className="h-4 w-1 bg-[#3ECF8E] rounded-full" />
                             <div className="flex items-center gap-2 h-full">
                                 <h3 className="text-sm font-semibold tracking-tight uppercase text-muted-foreground leading-none">{t('rag.doc_insight')}</h3>
                                 <button 
@@ -399,15 +421,78 @@ export const RagLibrary: React.FC<RagLibraryProps> = ({ books, stats, isLoading 
                             </div>
                         )}
                     </motion.div>
-                    
-                    {/* Vector Space Visualization - NEW */}
+
+                    {/* Trend Line Chart - Multi-Line Chart */}
                     <motion.div 
                         initial={{opacity:0, y:10}} 
                         animate={{opacity:1, y:0}} 
                         transition={{delay:0.6}} 
+                        className="bg-secondary/10 border border-border/50 rounded-xl p-6"
                     >
-                         <VectorDashboard />
+                         <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-medium">{t('rag.trends_over_time') || "Trends Over Time"}</h3>
+                            <BarChart3 size={16} className="text-muted-foreground/40" />
+                        </div>
+                        {(() => {
+                            // Logic to aggregate data by year and keyword
+                            const yearMap: Record<string, Record<string, number>> = {};
+                            const validYears = new Set<string>();
+
+                            books.forEach(b => {
+                                // Extract year
+                                let year = b.year;
+                                if (!year || year === 'Unknown') return;
+                                
+                                // Normalize simple years
+                                const yearMatch = year.match(/\d{4}/);
+                                if (yearMatch) year = yearMatch[0];
+                                else return; 
+                                validYears.add(year);
+
+                                if (!yearMap[year]) {
+                                    yearMap[year] = {};
+                                    keywordLabels.forEach(k => yearMap[year][k] = 0);
+                                }
+                                
+                                const totalPoints = b.stats?.qdrantPoints || 0;
+                                
+                                // Distribute points to keywords present in the book
+                                b.keywords.forEach(k => {
+                                    const lowerK = k.toLowerCase();
+                                    // Map to our labels
+                                    keywordLabels.forEach(label => {
+                                        if (label.toLowerCase() === lowerK || lowerK.includes(label.toLowerCase())) {
+                                            yearMap[year][label] = (yearMap[year][label] || 0) + totalPoints;
+                                        }
+                                    });
+                                });
+                            });
+
+                            const sortedYears = Array.from(validYears).sort();
+                            const trendData = sortedYears.map(year => {
+                                const reducedValues: Record<string, number> = {};
+                                Object.entries(yearMap[year]).forEach(([k, v]) => {
+                                    reducedValues[k] = Number((v / 1000).toFixed(2));
+                                });
+                                return {
+                                    year,
+                                    ...reducedValues
+                                };
+                            });
+
+                            if (trendData.length === 0) {
+                               return (
+                                   <div className="flex items-center justify-center h-40">
+                                        <p className="text-xs text-muted-foreground/50">{t('rag.no_trend_data') || "No trend data available"}</p>
+                                    </div>
+                               )
+                            }
+
+                            return <TrendLineChart data={trendData} categories={keywordLabels} isDark={isDark} />;
+                        })()}
                     </motion.div>
+                    
+
                 </div>
             )}
         </div>

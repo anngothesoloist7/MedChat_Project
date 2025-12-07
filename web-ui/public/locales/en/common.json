@@ -105,6 +105,7 @@
     "avg_chunk": "Avg Chunk Length",
     "connection_error": "Connection error",
     "thinking": "Thinking",
-    "no_lang_data": "No language data"
+    "no_lang_data": "No language data",
+    "trends_over_time": "Trends Over Time"
   }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from "react"
-import { Bar, BarChart, CartesianGrid, Label, LabelList, Pie, PieChart, Sector, XAxis, Cell } from "recharts"
+import { Bar, BarChart, CartesianGrid, Label, LabelList, Pie, PieChart, Sector, XAxis, Cell, Line, LineChart, Legend, YAxis } from "recharts"
 import { PieSectorDataItem } from "recharts/types/polar/Pie"
 
 import {
@@ -103,7 +103,7 @@ export function LabelDistributionChart({ data }: LabelChartProps) {
 
 
 interface LanguageChartProps {
-    data: { name: string; value: number }[];
+    data: { name: string; value: number; percentage?: number }[];
     isDark: boolean;
     totalDocs?: number; // New prop for center text
 }
@@ -119,6 +119,7 @@ export function LanguageDistributionChart({ data, totalDocs }: LanguageChartProp
   const chartData = data.map((item, index) => ({
       lang: item.name,
       value: item.value,
+      percentage: item.percentage || 0,
       fill: CHART_COLORS[index % CHART_COLORS.length],
   })).filter(d => d.value > 0);
 
@@ -142,7 +143,30 @@ export function LanguageDistributionChart({ data, totalDocs }: LanguageChartProp
           <PieChart>
             <ChartTooltip
               cursor={false}
-              content={<ChartTooltipContent hideLabel />}
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  const item = payload[0].payload;
+                  return (
+                    <div className="bg-popover text-popover-foreground border border-border/50 rounded-lg shadow-xl p-3 text-xs min-w-[140px]">
+                       <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border/50">
+                         <div className="w-2.5 h-2.5 rounded-[2px]" style={{backgroundColor: item.fill}} />
+                         <span className="font-semibold">{item.lang}</span>
+                       </div>
+                       <div className="flex flex-col gap-1.5">
+                         <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Documents</span>
+                            <span className="font-mono font-medium">{item.value}</span>
+                         </div>
+                         <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Percentage</span>
+                            <span className="font-mono font-medium">{item.percentage}%</span>
+                         </div>
+                       </div>
+                    </div>
+                  )
+                }
+                return null;
+              }}
             />
             <Pie
               data={chartData}
@@ -198,6 +222,107 @@ export function LanguageDistributionChart({ data, totalDocs }: LanguageChartProp
             ))}
         </div>
       </CardContent>
+    </Card>
+  )
+}
+
+interface TrendChartProps {
+    data: any[];
+    categories: string[];
+    isDark: boolean;
+}
+
+export function TrendLineChart({ data, categories, isDark }: TrendChartProps) {
+  const [hiddenSeries, setHiddenSeries] = React.useState<string[]>([]);
+
+  const toggleSeries = (name: string) => {
+      setHiddenSeries(prev => 
+          prev.includes(name) 
+              ? prev.filter(item => item !== name) 
+              : [...prev, name]
+      );
+  };
+
+  const chartConfig = {
+      // Map categories to config
+      ...Object.fromEntries(categories.map((cat, index) => [
+          cat,
+          { label: cat.charAt(0).toUpperCase() + cat.slice(1), color: CHART_COLORS[index % CHART_COLORS.length] }
+      ]))
+  } satisfies ChartConfig
+
+  return (
+    <Card className="flex flex-col border-0 shadow-none bg-transparent">
+        <CardContent className="flex-1 pb-0">
+            <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
+                <LineChart
+                    accessibilityLayer
+                    data={data}
+                    margin={{
+                        left: 12,
+                        right: 12,
+                        top: 12,
+                        bottom: 12,
+                    }}
+                >
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" strokeOpacity={0.2} />
+                    <XAxis
+                        dataKey="year"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                    />
+                    <YAxis 
+                         tickLine={false}
+                         axisLine={false}
+                         tickMargin={8}
+                         width={40}
+                         tickFormatter={(value) => `${value}k`}
+                    />
+                    <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent indicator="line" />}
+                    />
+                    {categories.map((cat, index) => (
+                        !hiddenSeries.includes(cat) && (
+                            <Line
+                                key={cat}
+                                dataKey={cat}
+                                type="monotone"
+                                stroke={CHART_COLORS[index % CHART_COLORS.length]}
+                                strokeWidth={2}
+                                dot={false}
+                                activeDot={{ r: 6 }}
+                            />
+                        )
+                    ))}
+                    <Legend 
+                        content={({ payload }) => (
+                           <div className="flex flex-wrap justify-center gap-4 mt-4">
+                                {(payload || []).map((entry: any, index: number) => {
+                                    const isHidden = hiddenSeries.includes(entry.value);
+                                    return (
+                                    <div 
+                                        key={`item-${index}`} 
+                                        className={`flex items-center gap-2 cursor-pointer transition-opacity duration-200 ${isHidden ? 'opacity-40 grayscale' : 'opacity-100'}`}
+                                        onClick={() => toggleSeries(entry.value)}
+                                    >
+                                        <div 
+                                            className="w-3 h-3 rounded-[2px]" 
+                                            style={{ backgroundColor: entry.color }}
+                                        />
+                                        <span className="text-xs font-medium text-foreground">
+                                            {typeof entry.value === 'string' ? entry.value.charAt(0).toUpperCase() + entry.value.slice(1) : entry.value}
+                                        </span>
+                                    </div>
+                                    )
+                                })}
+                            </div>
+                        )}
+                    />
+                </LineChart>
+            </ChartContainer>
+        </CardContent>
     </Card>
   )
 }

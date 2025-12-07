@@ -105,6 +105,7 @@
     "avg_chunk": "Độ dài mảnh TB",
     "connection_error": "Lỗi kết nối",
     "thinking": "Đang suy nghĩ",
-    "no_lang_data": "Không có dữ liệu ngôn ngữ"
+    "no_lang_data": "Không có dữ liệu ngôn ngữ",
+    "trends_over_time": "Xu hướng theo thời gian"
   }
 }

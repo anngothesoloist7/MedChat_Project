@@ -303,7 +303,7 @@ export function Sidebar({ isOpen, onToggle, activeTab, onTabChange, onLoadSessio
 
       <div
         className={clsx(
-          "fixed inset-y-0 left-0 z-50 flex flex-col bg-secondary transition-all duration-300 ease-in-out border-r border-transparent overflow-hidden",
+          "fixed inset-y-0 left-0 z-50 flex flex-col bg-sidebar transition-all duration-300 ease-in-out border-r border-transparent overflow-hidden",
           isOpen ? "w-72 translate-x-0" : "w-0 -translate-x-full md:w-16 md:translate-x-0"
         )}
       >

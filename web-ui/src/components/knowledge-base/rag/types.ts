@@ -6,6 +6,7 @@ export interface Book {
     title: string;
     author: string;
     year: string;
+    language?: string;
     keywords: string[];
     stats?: { qdrantPoints: number; avgChunkLength: number; };
 }
