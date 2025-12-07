@@ -85,14 +85,14 @@ export function LabelDistributionChart({ data }: LabelChartProps) {
         </ChartContainer>
 
         {/* Custom Legend */}
-        <div className="flex flex-wrap justify-center gap-4 mt-4">
+        <div className="flex flex-wrap justify-center gap-2 md:gap-4 mt-4">
             {chartData.map((item) => (
                 <div key={item.label} className="flex items-center gap-2">
                     <div 
                         className="w-3 h-3 rounded-[2px]" 
                         style={{ backgroundColor: item.fill }}
                     />
-                    <span className="text-xs font-medium text-foreground">{item.label}</span>
+                    <span className="text-[10px] md:text-xs font-medium text-foreground">{item.label}</span>
                 </div>
             ))}
         </div>
@@ -188,7 +188,7 @@ export function LanguageDistributionChart({ data, totalDocs }: LanguageChartProp
                         <tspan
                           x={viewBox.cx}
                           y={viewBox.cy}
-                          className="fill-foreground text-3xl font-bold"
+                          className="fill-foreground text-2xl md:text-3xl font-bold"
                         >
                           {displayTotal.toLocaleString()}
                         </tspan>
@@ -210,14 +210,14 @@ export function LanguageDistributionChart({ data, totalDocs }: LanguageChartProp
         </ChartContainer>
 
         {/* Custom Legend */}
-        <div className="flex flex-wrap justify-center gap-4 mt-4">
+        <div className="flex flex-wrap justify-center gap-2 md:gap-4 mt-4">
             {chartData.map((item, index) => (
                 <div key={item.lang} className="flex items-center gap-2">
                     <div 
                         className="w-3 h-3 rounded-[2px]" 
                         style={{ backgroundColor: item.fill }}
                     />
-                    <span className="text-xs font-medium text-foreground">{item.lang}</span>
+                    <span className="text-[10px] md:text-xs font-medium text-foreground">{item.lang}</span>
                 </div>
             ))}
         </div>
@@ -234,6 +234,7 @@ interface TrendChartProps {
 
 export function TrendLineChart({ data, categories, isDark }: TrendChartProps) {
   const [hiddenSeries, setHiddenSeries] = React.useState<string[]>([]);
+  const [hoveredSeries, setHoveredSeries] = React.useState<string | null>(null);
 
   const toggleSeries = (name: string) => {
       setHiddenSeries(prev => 
@@ -283,35 +284,48 @@ export function TrendLineChart({ data, categories, isDark }: TrendChartProps) {
                         cursor={false}
                         content={<ChartTooltipContent indicator="line" />}
                     />
-                    {categories.map((cat, index) => (
-                        !hiddenSeries.includes(cat) && (
+                    {categories.map((cat, index) => {
+                         const isHidden = hiddenSeries.includes(cat);
+                         if (isHidden) return null;
+                         
+                         const isDimmed = hoveredSeries && hoveredSeries !== cat;
+
+                         return (
                             <Line
                                 key={cat}
                                 dataKey={cat}
                                 type="monotone"
                                 stroke={CHART_COLORS[index % CHART_COLORS.length]}
-                                strokeWidth={2}
+                                strokeWidth={hoveredSeries === cat ? 3 : 2}
+                                strokeOpacity={isDimmed ? 0.2 : 1}
                                 dot={false}
                                 activeDot={{ r: 6 }}
+                                onMouseEnter={() => setHoveredSeries(cat)}
+                                onMouseLeave={() => setHoveredSeries(null)}
                             />
-                        )
-                    ))}
+                        );
+                    })}
                     <Legend 
                         content={({ payload }) => (
-                           <div className="flex flex-wrap justify-center gap-4 mt-4">
+                           <div className="flex flex-wrap justify-center gap-2 md:gap-4 mt-4">
                                 {(payload || []).map((entry: any, index: number) => {
                                     const isHidden = hiddenSeries.includes(entry.value);
+                                    const isHovered = hoveredSeries === entry.value;
+                                    const isDimmed = hoveredSeries && hoveredSeries !== entry.value;
+
                                     return (
                                     <div 
                                         key={`item-${index}`} 
-                                        className={`flex items-center gap-2 cursor-pointer transition-opacity duration-200 ${isHidden ? 'opacity-40 grayscale' : 'opacity-100'}`}
+                                        className={`flex items-center gap-2 cursor-pointer transition-all duration-200 ${isHidden ? 'opacity-40 grayscale' : isDimmed ? 'opacity-30' : 'opacity-100'} ${isHovered ? 'scale-105 font-semibold' : ''}`}
                                         onClick={() => toggleSeries(entry.value)}
+                                        onMouseEnter={() => setHoveredSeries(entry.value)}
+                                        onMouseLeave={() => setHoveredSeries(null)}
                                     >
                                         <div 
-                                            className="w-3 h-3 rounded-[2px]" 
+                                            className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-[2px]" 
                                             style={{ backgroundColor: entry.color }}
                                         />
-                                        <span className="text-xs font-medium text-foreground">
+                                        <span className="text-[10px] md:text-xs font-medium text-foreground">
                                             {typeof entry.value === 'string' ? entry.value.charAt(0).toUpperCase() + entry.value.slice(1) : entry.value}
                                         </span>
                                     </div>

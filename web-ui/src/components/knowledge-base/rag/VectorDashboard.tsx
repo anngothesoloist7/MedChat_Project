@@ -16,7 +16,7 @@ interface PlotDataPoint {
     markerColor: number;
 }
 
-const VectorDashboard: React.FC<VectorDashboardProps> = ({ apiBaseUrl = 'http://localhost:8000' }) => {
+const VectorDashboard: React.FC<VectorDashboardProps> = ({ apiBaseUrl = 'https://rag.botnow.online' }) => {
   // --- State ---
   const [points, setPoints] = useState<any[]>([]);
   const [plotData, setPlotData] = useState<PlotDataPoint[]>([]);

@@ -22,9 +22,9 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
     const [physicalFilename, setPhysicalFilename] = useState<string | null>(null);
     const [fileStats, setFileStats] = useState<{size: string, pages: number, exists: boolean} | null>(null);
 
-    const WS_URL = "ws://localhost:8000/ws/pipeline";
-    const API_PROCESS = "http://localhost:8000/process";
-    const API_FILES = "http://localhost:8000/files";
+    const WS_URL = "wss://rag.botnow.online/ws/pipeline";
+    const API_PROCESS = "https://rag.botnow.online/process";
+    const API_FILES = "https://rag.botnow.online/files";
 
     useEffect(() => {
         return () => {
@@ -176,12 +176,12 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
                         className="w-full flex flex-col md:flex-row items-center gap-6 relative z-10"
                     >
                          {/* Upload PDF */}
-                         <label className="flex-1 flex flex-col items-center justify-center w-full h-44 border border-dashed border-border/70 rounded-2xl cursor-pointer hover:bg-secondary/20 hover:border-accent/50 transition-all duration-300 group bg-background/20">
-                            <div className="p-4 rounded-full bg-secondary/50 mb-3 group-hover:scale-110 transition-transform group-hover:bg-accent group-hover:text-accent-foreground">
-                                <UploadCloud className="w-7 h-7 transition-colors" />
+                         <label className="flex-1 flex flex-col items-center justify-center w-full h-36 md:h-44 border border-dashed border-border/70 rounded-2xl cursor-pointer hover:bg-secondary/20 hover:border-accent/50 transition-all duration-300 group bg-background/20">
+                            <div className="p-3 md:p-4 rounded-full bg-secondary/50 mb-2 md:mb-3 group-hover:scale-110 transition-transform group-hover:bg-accent group-hover:text-accent-foreground">
+                                <UploadCloud className="w-5 h-5 md:w-7 md:h-7 transition-colors" />
                             </div>
-                            <p className="text-sm font-medium">{t('rag.upload_pdf')}</p>
-                            <span className="text-xs text-muted-foreground mt-1">{t('rag.drag_drop')}</span>
+                            <p className="text-xs md:text-sm font-medium">{t('rag.upload_pdf')}</p>
+                            <span className="text-[10px] md:text-xs text-muted-foreground mt-1">{t('rag.drag_drop')}</span>
                             <input type="file" accept=".pdf" className="hidden" onChange={handleFileUpload} />
                          </label>
                          
@@ -193,14 +193,14 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
                          </div>
                          
                          {/* URL Input */}
-                         <div className="flex-1 flex flex-col items-center justify-center w-full h-44 border border-dashed border-border/70 rounded-2xl p-6 bg-background/20">
+                         <div className="flex-1 flex flex-col items-center justify-center w-full h-36 md:h-44 border border-dashed border-border/70 rounded-2xl p-4 md:p-6 bg-background/20">
                             <div className="w-full max-w-xs">
                                 <div className="relative">
                                     <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                                     <input 
                                         type="text" 
                                         placeholder={t('rag.paste_url')} 
-                                        className="w-full bg-secondary/30 border border-border/50 rounded-xl pl-10 pr-10 py-2.5 text-sm focus:ring-1 focus:ring-accent outline-none transition-shadow"
+                                        className="w-full bg-secondary/30 border border-border/50 rounded-xl pl-10 pr-10 py-2.5 text-xs md:text-sm focus:ring-1 focus:ring-accent outline-none transition-shadow"
                                         onKeyDown={(e) => { if(e.key==='Enter') handleUrlSubmit(e.currentTarget.value) }}
                                     />
                                     <button 
@@ -213,7 +213,7 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
                                         <ArrowRight size={14} />
                                     </button>
                                 </div>
-                                <p className="text-xs text-center text-muted-foreground mt-3">{t('rag.import_web')}</p>
+                                <p className="text-[10px] md:text-xs text-center text-muted-foreground mt-2 md:mt-3">{t('rag.import_web')}</p>
                             </div>
                          </div>
                     </motion.div>
@@ -276,13 +276,27 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
                 )}
 
                 {state === 'processing' && (
-                    <motion.div key="processing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md">
+                    <motion.div key="processing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-2xl">
                          <div className="flex items-center gap-3 mb-8 border-b border-border/50 pb-4">
                             <FileText className="w-4 h-4 text-accent" />
                             <span className="text-sm font-medium truncate text-foreground/90">{filename}</span>
                          </div>
                          <div className="space-y-6 relative pl-3">
-                            <div className="absolute left-[21px] top-2 bottom-4 w-[1px] bg-border/50" />
+                            {/* Background Line - Connects all nodes */}
+                            <div className="absolute left-[22px] top-[10px] bottom-[10px] w-[2px] bg-[#3ECF8E]/20" />
+                            
+                            {/* Active Progress Line */}
+                            <motion.div 
+                                className="absolute left-[22px] top-[10px] w-[2px] bg-[#3ECF8E] origin-top"
+                                initial={{ height: 0 }}
+                                animate={{ 
+                                    height: (logs?.step || 1) === 1 ? "0%" : (logs?.step || 1) === 2 ? "50%" : "100%"
+                                }}
+                                transition={{ duration: 0.5, ease: "easeInOut" }}
+                            >
+                                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-white/50 to-transparent animate-shimmer" style={{ backgroundSize: '100% 200%' }} />
+                            </motion.div>
+
                             <StepIndicator step={1} currentStep={logs?.step || 1} label={t('rag.step_1')} />
                             <StepIndicator step={2} currentStep={logs?.step || 1} label={t('rag.step_2')} />
                             <StepIndicator step={3} currentStep={logs?.step || 1} label={t('rag.step_3')} />

@@ -17,17 +17,20 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({ step, currentStep,
             {isActive && (
                 <motion.div
                     layoutId="active-step-glow"
-                    className="absolute left-[-4px] w-7 h-7 bg-accent/20 rounded-full blur-[2px]"
+                    className="absolute left-[-4px] w-7 h-7 bg-[#3ECF8E]/20 rounded-full blur-[2px]"
                     initial={{ scale: 0.8, opacity: 0.5 }}
                     animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.2, 0.5] }}
                     transition={{ duration: 2, repeat: Infinity }}
                 />
             )}
+            {/* Solid mask to hide the line behind the node */}
+            <div className="absolute left-0 w-5 h-5 rounded-full bg-background z-0" />
+            
             <motion.div 
                 className={clsx(
-                    "w-5 h-5 rounded-full border flex items-center justify-center z-10 transition-colors duration-300",
-                    isActive ? "border-accent-foreground bg-accent text-accent-foreground" : 
-                    isDone ? "border-primary/50 bg-background text-primary" : "border-border bg-background"
+                    "w-5 h-5 rounded-full border flex items-center justify-center z-10 transition-colors duration-300 relative",
+                    isActive ? "border-[#3ECF8E] bg-[#3ECF8E]/10 text-[#3ECF8E]" : 
+                    isDone ? "border-[#3ECF8E]/50 bg-background text-[#3ECF8E]" : "border-border bg-background"
                 )}
                 animate={{ scale: isActive ? 1.1 : 1 }}
             >
@@ -38,8 +41,8 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({ step, currentStep,
                     <p className="text-[10px] font-bold uppercase tracking-widest leading-none">Phase 0{step}</p>
                     {isActive && (
                         <span className="flex h-1.5 w-1.5 relative">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-foreground opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-foreground"></span>
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#3ECF8E] opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#3ECF8E]"></span>
                         </span>
                     )}
                 </div>

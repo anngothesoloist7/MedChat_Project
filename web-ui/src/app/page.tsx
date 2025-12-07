@@ -68,7 +68,7 @@ export default function Home() {
      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 min timeout
 
      try {
-         const res = await fetch('http://localhost:8000/library', { signal: controller.signal });
+         const res = await fetch('https://rag.botnow.online/library', { signal: controller.signal });
          const data = await res.json();
          if (data.books) {
              setBooks(data.books);
@@ -331,7 +331,7 @@ export default function Home() {
         </header>
 
         <main className="flex-1 overflow-y-auto scroll-smooth">
-          <div className="max-w-3xl mx-auto w-full px-4 py-6 md:py-10">
+          <div className={clsx("mx-auto w-full px-4 py-6 md:py-10 transition-all duration-500", activeTab === 'ehr' ? "max-w-5xl" : "max-w-3xl")}>
             
             {/* --- RAG / EHR MODE UI --- */}
             {activeTab === 'ehr' && messages.length === 0 && (

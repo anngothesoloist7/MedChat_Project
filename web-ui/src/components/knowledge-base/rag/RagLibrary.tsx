@@ -50,13 +50,13 @@ const BookCard: React.FC<{
                     <div className={clsx(
                         "p-2 rounded-lg shrink-0 border transition-colors",
                         isExpanded 
-                            ? "bg-accent/10 text-accent border-accent/30" 
-                            : "bg-background text-muted-foreground border-border/30 group-hover:text-accent group-hover:border-accent/20"
+                            ? "bg-[#3ECF8E]/10 text-[#3ECF8E] border-[#3ECF8E]/30" 
+                            : "bg-background text-muted-foreground border-border/30 group-hover:text-[#3ECF8E] group-hover:bg-[#3ECF8E]/10 group-hover:border-[#3ECF8E]/20"
                     )}>
                         <FileText size={16} />
                     </div>
                     <h3 className={clsx(
-                        "text-sm font-medium text-foreground transition-colors",
+                        "text-sm font-medium text-foreground transition-colors group-hover:text-[#3ECF8E]",
                         !isExpanded && "truncate max-w-[180px] md:max-w-[280px]"
                     )}>
                         {book.title}
@@ -200,7 +200,7 @@ export const RagLibrary: React.FC<RagLibraryProps> = ({ books, stats, isLoading 
 
         setDeletingBookId(id);
         try {
-            const res = await fetch(`http://localhost:8000/library/${encodeURIComponent(targetId)}`, {
+            const res = await fetch(`https://rag.botnow.online/library/${encodeURIComponent(targetId)}`, {
                 method: 'DELETE',
             });
             if (res.ok) {
@@ -262,13 +262,13 @@ export const RagLibrary: React.FC<RagLibraryProps> = ({ books, stats, isLoading 
 
     return (
         <div className={clsx(
-            "mt-12 pb-20 w-full mx-auto transition-all duration-300",
+            "mt-6 md:mt-12 pb-20 w-full mx-auto transition-all duration-300",
             fullWidth ? "max-w-6xl" : "max-w-4xl"
         )}>
             
             {/* Controls */}
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                <div className="flex items-center justify-between md:justify-start gap-4">
                     <div className="bg-secondary/50 p-1 rounded-lg flex border border-border/50">
                         <button 
                             onClick={() => setViewMode('list')}
@@ -286,7 +286,7 @@ export const RagLibrary: React.FC<RagLibraryProps> = ({ books, stats, isLoading 
                 </div>
 
                  {viewMode === 'list' && (
-                     <div className="relative w-64 group">
+                     <div className="relative w-full md:w-64 group">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
                         <input 
                             type="text" 
@@ -370,7 +370,7 @@ export const RagLibrary: React.FC<RagLibraryProps> = ({ books, stats, isLoading 
                         <button
                             onClick={() => setFullWidth(!fullWidth)}
                             className={clsx(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                "hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                                 fullWidth 
                                     ? "bg-accent text-accent-foreground" 
                                     : "bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/50"
@@ -382,7 +382,7 @@ export const RagLibrary: React.FC<RagLibraryProps> = ({ books, stats, isLoading 
                     </div>
                     
                     {/* Stats Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                         <StatCard icon={FileText} label={t('rag.documents')} value={books.length} change="pdf" delay={0.1} />
                         <StatCard icon={Database} label={t('rag.vector_points')} value={totalPoints.toLocaleString()} change="json" delay={0.2} />
                         <StatCard icon={Ruler} label={t('rag.avg_chunk')} value={stats?.avg_chunk_length?.toLocaleString() || '0'} change="chars" delay={0.3} />
@@ -393,7 +393,7 @@ export const RagLibrary: React.FC<RagLibraryProps> = ({ books, stats, isLoading 
                         initial={{opacity:0, y:10}} 
                         animate={{opacity:1, y:0}} 
                         transition={{delay:0.4}} 
-                        className="bg-secondary/10 border border-border/50 rounded-xl p-6"
+                        className="bg-secondary/10 border border-border/50 rounded-xl p-4 md:p-6"
                     >
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-medium">{t('rag.label_dist')}</h3>
@@ -407,7 +407,7 @@ export const RagLibrary: React.FC<RagLibraryProps> = ({ books, stats, isLoading 
                         initial={{opacity:0, y:10}} 
                         animate={{opacity:1, y:0}} 
                         transition={{delay:0.5}} 
-                        className="bg-secondary/10 border border-border/50 rounded-xl p-6"
+                        className="bg-secondary/10 border border-border/50 rounded-xl p-4 md:p-6"
                     >
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-medium">{t('rag.lang_dist')}</h3>
@@ -427,7 +427,7 @@ export const RagLibrary: React.FC<RagLibraryProps> = ({ books, stats, isLoading 
                         initial={{opacity:0, y:10}} 
                         animate={{opacity:1, y:0}} 
                         transition={{delay:0.6}} 
-                        className="bg-secondary/10 border border-border/50 rounded-xl p-6"
+                        className="bg-secondary/10 border border-border/50 rounded-xl p-4 md:p-6"
                     >
                          <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-medium">{t('rag.trends_over_time') || "Trends Over Time"}</h3>
