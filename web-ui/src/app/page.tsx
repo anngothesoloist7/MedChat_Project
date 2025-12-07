@@ -331,7 +331,7 @@ export default function Home() {
         </header>
 
         <main className="flex-1 overflow-y-auto scroll-smooth">
-          <div className={clsx("mx-auto w-full px-4 py-6 md:py-10 transition-all duration-500", activeTab === 'ehr' ? "max-w-5xl" : "max-w-3xl")}>
+          <div className={clsx("mx-auto w-full px-4 py-6 md:py-10 transition-all duration-500", activeTab === 'ehr' ? "max-w-full" : "max-w-3xl")}>
             
             {/* --- RAG / EHR MODE UI --- */}
             {activeTab === 'ehr' && messages.length === 0 && (

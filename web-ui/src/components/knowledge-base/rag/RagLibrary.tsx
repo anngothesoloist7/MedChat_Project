@@ -10,8 +10,19 @@ import { StatCard } from './StatCard';
 import { LabelDistributionChart, LanguageDistributionChart, TrendLineChart } from './ChartComponents';
 import VectorDashboard from './VectorDashboard';
 
-// Color palettes for UMAP scatter
-const LABEL_COLORS = ['#22d3ee', '#a78bfa', '#4ade80', '#f472b6', '#facc15', '#fb923c'];
+// Match colors from ChartComponents.tsx
+const LABEL_COLORS = ['#4ade80', '#60a5fa', '#c084fc', '#fbbf24', '#2dd4bf', '#fb923c'];
+
+const getKeywordColor = (keyword: string) => {
+    const categories = ['disease', 'symptom', 'treatment', 'drug', 'imaging', 'lab-test'];
+    const index = categories.indexOf(keyword.toLowerCase());
+    if (index !== -1) return LABEL_COLORS[index];
+    // Hash fallback for unknown keywords
+    let hash = 0;
+    for (let i = 0; i < keyword.length; i++) hash = keyword.charCodeAt(i) + ((hash << 5) - hash);
+    const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+    return '#' + "00000".substring(0, 6 - c.length) + c;
+};
 
 interface LibraryStats {
     keyword_distribution: Record<string, number>;
@@ -43,7 +54,7 @@ const BookCard: React.FC<{
         >
             {/* Compact View - Always Visible */}
             <div 
-                className="p-3 flex items-center justify-between cursor-pointer group"
+                className="p-3 flex items-center justify-between gap-4 cursor-pointer group"
                 onClick={onToggle}
             >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -57,7 +68,7 @@ const BookCard: React.FC<{
                     </div>
                     <h3 className={clsx(
                         "text-sm font-medium text-foreground transition-colors group-hover:text-[#3ECF8E]",
-                        !isExpanded && "truncate max-w-[180px] md:max-w-[280px]"
+                        !isExpanded && "truncate"
                     )}>
                         {book.title}
                     </h3>
@@ -66,11 +77,22 @@ const BookCard: React.FC<{
                     {/* Hide keywords when expanded */}
                     {!isExpanded && (
                         <div className="flex gap-1">
-                            {book.keywords.slice(0, 3).map(k => (
-                                <span key={k} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary/60 border border-border/40 text-muted-foreground capitalize whitespace-nowrap">
-                                    {k}
-                                </span>
-                            ))}
+                            {book.keywords.slice(0, 3).map(k => {
+                                const color = getKeywordColor(k);
+                                return (
+                                    <span 
+                                        key={k} 
+                                        className="text-sm px-2.5 py-1 rounded-md border capitalize whitespace-nowrap"
+                                        style={{
+                                            backgroundColor: `${color}15`, // ~8% opacity
+                                            color: color,
+                                            borderColor: `${color}30` // ~20% opacity
+                                        }}
+                                    >
+                                        {k}
+                                    </span>
+                                );
+                            })}
                         </div>
                     )}
                     <ChevronDown 
@@ -126,11 +148,22 @@ const BookCard: React.FC<{
                                 <div className="mt-3 flex items-center gap-2">
                                     <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0">{t('rag.keywords')}</span>
                                     <div className="flex flex-wrap gap-1.5">
-                                        {book.keywords.map(k => (
-                                            <span key={k} className="text-[10px] px-2 py-1 rounded-full bg-secondary/50 border border-border/30 text-muted-foreground capitalize">
-                                                {k}
-                                            </span>
-                                        ))}
+                                        {book.keywords.map(k => {
+                                             const color = getKeywordColor(k);
+                                             return (
+                                                <span 
+                                                    key={k} 
+                                                    className="text-sm px-2.5 py-1 rounded-md border capitalize whitespace-nowrap"
+                                                    style={{
+                                                        backgroundColor: `${color}15`,
+                                                        color: color,
+                                                        borderColor: `${color}30`
+                                                    }}
+                                                >
+                                                    {k}
+                                                </span>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}
@@ -263,7 +296,7 @@ export const RagLibrary: React.FC<RagLibraryProps> = ({ books, stats, isLoading 
     return (
         <div className={clsx(
             "mt-6 md:mt-12 pb-20 w-full mx-auto transition-all duration-300",
-            fullWidth ? "max-w-6xl" : "max-w-4xl"
+            fullWidth ? "max-w-full" : "max-w-4xl"
         )}>
             
             {/* Controls */}
@@ -287,13 +320,13 @@ export const RagLibrary: React.FC<RagLibraryProps> = ({ books, stats, isLoading 
 
                  {viewMode === 'list' && (
                      <div className="relative w-full md:w-64 group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                         <input 
                             type="text" 
                             placeholder={t('rag.filter_docs')} 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-secondary/30 border border-border/50 rounded-lg pl-9 pr-3 py-2 text-xs focus:ring-1 focus:ring-accent outline-none transition-all focus:bg-secondary/50"
+                            className="w-full bg-secondary/30 border border-border/50 rounded-lg pl-9 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-accent outline-none transition-all focus:bg-secondary/50"
                         />
                      </div>
                  )}
