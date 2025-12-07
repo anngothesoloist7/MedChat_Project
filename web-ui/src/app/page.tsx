@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Sidebar } from '@/components/Sidebar';
-import { MessageBubble, Message } from '@/components/MessageBubble';
-import { InputArea, InputAreaRef } from '@/components/InputArea';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { MessageBubble, Message } from '@/components/chat/MessageBubble';
+import { InputArea, InputAreaRef } from '@/components/chat/InputArea';
 import { Menu, Sparkles } from 'lucide-react'; 
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
@@ -14,10 +14,10 @@ import { getDeviceId } from '@/utils/device';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Import New RAG Components
-import { RagIngestion } from '@/components/rag/RagIngestion';
-import { RagLibrary } from '@/components/rag/RagLibrary';
-import { Book } from '@/components/rag/types';
-import { StartupLoader } from '@/components/StartupLoader';
+import { RagIngestion } from '@/components/knowledge-base/rag/RagIngestion';
+import { RagLibrary } from '@/components/knowledge-base/rag/RagLibrary';
+import { Book } from '@/components/knowledge-base/rag/types';
+import { StartupLoader } from '@/components/layout/StartupLoader';
 
 // Mock Data for Library (In real app, fetch from key-value store or DB)
 // Mock Data removed. Using real API.
@@ -64,8 +64,11 @@ export default function Home() {
 
   const fetchLibrary = async () => {
      setIsLibraryLoading(true);
+     const controller = new AbortController();
+     const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 min timeout
+
      try {
-         const res = await fetch('http://localhost:8000/library');
+         const res = await fetch('http://localhost:8000/library', { signal: controller.signal });
          const data = await res.json();
          if (data.books) {
              setBooks(data.books);
@@ -73,9 +76,16 @@ export default function Home() {
          if (data.stats) {
              setLibraryStats(data.stats);
          }
-     } catch (e) {
-         console.error("Failed to fetch library", e);
+     } catch (e: any) {
+         if (e.name === 'AbortError') {
+            console.warn("Library fetch timed out - Server might be busy processing large index.");
+         } else if (e.message && e.message.includes('Failed to fetch')) {
+             console.error("Could not connect to backend server. Is it running?");
+         } else {
+            console.error("Failed to fetch library", e);
+         }
      } finally {
+         clearTimeout(timeoutId);
          setIsLibraryLoading(false);
      }
   };
@@ -329,9 +339,9 @@ export default function Home() {
                     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center justify-center mb-8">
                         <div className="inline-flex items-center gap-2 mb-3 px-3 py-1 rounded-full bg-secondary/50 border border-border/50 backdrop-blur-sm">
                             <Sparkles className="w-3 h-3 text-accent-foreground" />
-                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">RAG Processor</span>
+                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">{t('rag.processor')}</span>
                         </div>
-                        <h1 className="text-3xl font-medium text-foreground text-center">Knowledge Base</h1>
+                        <h1 className="text-3xl font-medium text-foreground text-center">{t('rag.title')}</h1>
                     </motion.div>
 
                     <RagIngestion onComplete={handleRagComplete} />
@@ -380,7 +390,7 @@ export default function Home() {
                       </div>
                    ) : (
                        <div className="flex items-center gap-3">
-                         <div className="text-sm text-muted-foreground animate-pulse">{t('thinking')}</div>
+                         <div className="text-sm text-muted-foreground animate-pulse">{t('rag.thinking')}</div>
                          <div className="loader3">
                            <div className="circle1"></div><div className="circle1"></div><div className="circle1"></div><div className="circle1"></div><div className="circle1"></div>
                          </div>
@@ -409,7 +419,7 @@ export default function Home() {
               ref={inputAreaRef}
               onSend={handleSendMessage} 
               disabled={isLoading} 
-              placeholder={activeTab === 'ehr' ? "Ask your Knowledge Base..." : t('enter_prompt')}
+              placeholder={activeTab === 'ehr' ? t('rag.ask_placeholder') : t('enter_prompt')}
             />
         </div>
 

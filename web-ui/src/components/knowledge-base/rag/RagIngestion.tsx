@@ -5,21 +5,26 @@ import {
 } from 'lucide-react';
 import { PipelineState, LogMessage } from './types';
 import { StepIndicator } from './StepIndicator';
+import { useSettings } from '@/context/SettingsContext';
 
 interface RagIngestionProps {
     onComplete: (filename: string) => void;
 }
 
 export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
+    const { t } = useSettings();
     const [state, setState] = useState<PipelineState>('idle');
     const [filename, setFilename] = useState('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
     const [logs, setLogs] = useState<LogMessage | null>(null);
     const [socket, setSocket] = useState<WebSocket | null>(null);
+    const [physicalFilename, setPhysicalFilename] = useState<string | null>(null);
+    const [fileStats, setFileStats] = useState<{size: string, pages: number, exists: boolean} | null>(null);
 
     const WS_URL = "ws://localhost:8000/ws/pipeline";
     const API_PROCESS = "http://localhost:8000/process";
+    const API_FILES = "http://localhost:8000/files";
 
     useEffect(() => {
         return () => {
@@ -34,7 +39,7 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                setLogs(data);
+                setLogs(prev => ({ ...prev, ...data }));
                 
                 // Only mark as fully completed if it's the final step or a special completion message
                 if (data.status === 'completed' && (data.step === 4 || data.message === "Pipeline Finished")) {
@@ -45,8 +50,10 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
                         onComplete(filename);
                     }, 1000);
                 } else if (data.status === 'error') {
-                    // Optional: handle error state explicitly if needed
+                    // Show error state with message
                     console.error("Pipeline Error:", data.message);
+                    setState('error');
+                    setLogs(prev => ({ ...prev, step: 0, message: data.message })); // Ensure message is set
                 }
             } catch (e) {
                 console.error("WS Parse Error", e);
@@ -68,12 +75,14 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
             const data = await response.json();
             if (data.results?.[0]) {
                 const res = data.results[0];
-                if (res.exists) {
-                    setFilename(res.filename || filename);
-                    setState('confirming');
-                } else {
-                    startPipeline(false, file, url);
-                }
+                const stats = res.stats || { size: 0, pages: 0 };
+                const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
+                
+                setFilename(res.display_name || res.filename || filename);
+                if (res.filename) setPhysicalFilename(res.filename);
+                
+                setFileStats({ size: sizeMB + " MB", pages: stats.pages, exists: res.exists });
+                setState('confirming');
             } else {
                  startPipeline(false, file, url);
             }
@@ -89,6 +98,7 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
         setFilename(file.name);
         setSelectedFile(file);
         setSelectedUrl(null);
+        setPhysicalFilename(null);
         
         const formData = new FormData();
         formData.append('file', file);
@@ -101,6 +111,7 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
         setFilename(url);
         setSelectedUrl(url);
         setSelectedFile(null);
+        setPhysicalFilename(null);
 
         const formData = new FormData();
         formData.append('url', url);
@@ -119,6 +130,7 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
         formData.append('p1', 'true');
         formData.append('p2', 'true');
         formData.append('p3', 'true');
+        // clean is true by default now in api
 
         try {
             await fetch(API_PROCESS, { method: 'POST', body: formData });
@@ -127,12 +139,24 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
         }
     };
 
-    const reset = () => {
+    const reset = async () => {
+        if (physicalFilename) {
+            try {
+                // Delete the physical file from raw folder if user cancels
+                console.log("Deleting raw file:", physicalFilename);
+                await fetch(`${API_FILES}/${physicalFilename}`, { method: 'DELETE' });
+            } catch (e) {
+                console.error("Failed to delete raw file:", e);
+            }
+        }
+        
         setState('idle');
         setFilename('');
         setLogs(null);
         setSelectedFile(null);
         setSelectedUrl(null);
+        setFileStats(null);
+        setPhysicalFilename(null);
     };
 
     return (
@@ -156,15 +180,15 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
                             <div className="p-4 rounded-full bg-secondary/50 mb-3 group-hover:scale-110 transition-transform group-hover:bg-accent group-hover:text-accent-foreground">
                                 <UploadCloud className="w-7 h-7 transition-colors" />
                             </div>
-                            <p className="text-sm font-medium">Upload PDF</p>
-                            <span className="text-xs text-muted-foreground mt-1">Drag & drop supported</span>
+                            <p className="text-sm font-medium">{t('rag.upload_pdf')}</p>
+                            <span className="text-xs text-muted-foreground mt-1">{t('rag.drag_drop')}</span>
                             <input type="file" accept=".pdf" className="hidden" onChange={handleFileUpload} />
                          </label>
                          
                          {/* OR Divider */}
                          <div className="flex md:flex-col items-center gap-2 text-muted-foreground/50">
                             <div className="w-8 md:w-px h-px md:h-8 bg-border/50" />
-                            <span className="text-xs font-medium uppercase tracking-wider">or</span>
+                            <span className="text-xs font-medium uppercase tracking-wider">{t('rag.or')}</span>
                             <div className="w-8 md:w-px h-px md:h-8 bg-border/50" />
                          </div>
                          
@@ -175,7 +199,7 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
                                     <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                                     <input 
                                         type="text" 
-                                        placeholder="Paste URL..." 
+                                        placeholder={t('rag.paste_url')} 
                                         className="w-full bg-secondary/30 border border-border/50 rounded-xl pl-10 pr-10 py-2.5 text-sm focus:ring-1 focus:ring-accent outline-none transition-shadow"
                                         onKeyDown={(e) => { if(e.key==='Enter') handleUrlSubmit(e.currentTarget.value) }}
                                     />
@@ -189,7 +213,7 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
                                         <ArrowRight size={14} />
                                     </button>
                                 </div>
-                                <p className="text-xs text-center text-muted-foreground mt-3">Import from web or drive</p>
+                                <p className="text-xs text-center text-muted-foreground mt-3">{t('rag.import_web')}</p>
                             </div>
                          </div>
                     </motion.div>
@@ -199,26 +223,54 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
                     <motion.div key="checking" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center">
                         <div className="relative">
                             <div className="absolute inset-0 bg-accent/20 blur-xl rounded-full" />
-                            <Loader2 className="w-12 h-12 animate-spin text-accent relative z-10" />
+                            <div className="flex items-center gap-3 bg-secondary/30 px-6 py-3 rounded-full border border-border/50">
+                                <Loader2 className="w-5 h-5 animate-spin text-accent" />
+                                <span className="text-sm font-medium text-foreground">{t('rag.verifying')}</span>
+                            </div>
                         </div>
-                        <span className="text-sm font-mono text-muted-foreground mt-6 animate-pulse">Verifying source metadata...</span>
                     </motion.div>
                 )}
 
                 {state === 'confirming' && (
-                    <motion.div key="confirming" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="text-center w-full max-w-sm">
-                        <div className="inline-flex p-4 bg-amber-500/10 rounded-full text-amber-500 mb-4 border border-amber-500/20 shadow-[0_0_15px_-3px_rgba(245,158,11,0.3)]">
-                            <AlertCircle size={28} />
-                        </div>
-                        <h3 className="text-lg font-medium text-foreground">File Already Exists</h3>
-                        <p className="text-sm text-muted-foreground mt-2 mb-8 leading-relaxed">
-                            The document "<span className="text-foreground font-medium">{filename}</span>" is already in your knowledge base.
-                        </p>
-                        <div className="flex gap-4 justify-center">
-                            <button onClick={reset} className="px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-secondary border border-transparent hover:border-border transition-all">Cancel</button>
-                            <button onClick={() => startPipeline(true)} className="px-5 py-2.5 bg-accent text-accent-foreground rounded-xl text-sm font-medium hover:brightness-110 shadow-lg shadow-accent/20 flex items-center gap-2">
-                                Overwrite <ArrowRight size={14} />
-                            </button>
+                    <motion.div key="confirming" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="text-center w-full max-w-md">
+                        <div className="bg-secondary/20 border border-border/50 rounded-2xl p-6 backdrop-blur-sm">
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="p-3 bg-accent/10 rounded-xl">
+                                    <FileText className="w-8 h-8 text-accent" />
+                                </div>
+                                <div className="text-left flex-1 min-w-0">
+                                    <h3 className="font-medium text-foreground truncate" title={filename}>{filename}</h3>
+                                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                                        <span className="flex items-center gap-1">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> 
+                                            {fileStats?.size}
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                             <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                                             {fileStats?.pages} Pages
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {fileStats?.exists && (
+                                <div className="mb-6 flex items-center gap-2 text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg text-sm">
+                                    <AlertCircle size={16} />
+                                    <span>{t('rag.file_exists')}</span>
+                                </div>
+                            )}
+
+                            <div className="flex gap-3">
+                                <button onClick={reset} className="flex-1 py-2.5 rounded-xl text-sm font-medium hover:bg-secondary border border-transparent hover:border-border transition-all">
+                                    {t('rag.cancel')}
+                                </button>
+                                <button 
+                                    onClick={() => startPipeline(fileStats?.exists || false)} 
+                                    className="flex-1 py-2.5 bg-accent text-accent-foreground rounded-xl text-sm font-medium hover:brightness-110 shadow-lg shadow-accent/20 flex items-center justify-center gap-2"
+                                >
+                                    {fileStats?.exists ? t('rag.overwrite') : t('rag.start_processing')} <ArrowRight size={14} />
+                                </button>
+                            </div>
                         </div>
                     </motion.div>
                 )}
@@ -231,15 +283,32 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
                          </div>
                          <div className="space-y-6 relative pl-3">
                             <div className="absolute left-[21px] top-2 bottom-4 w-[1px] bg-border/50" />
-                            <StepIndicator step={1} currentStep={logs?.step || 1} label="Smart Chunking" />
-                            <StepIndicator step={2} currentStep={logs?.step || 1} label="OCR & Translation" />
-                            <StepIndicator step={3} currentStep={logs?.step || 1} label="Vector Indexing" />
+                            <StepIndicator step={1} currentStep={logs?.step || 1} label={t('rag.step_1')} />
+                            <StepIndicator step={2} currentStep={logs?.step || 1} label={t('rag.step_2')} />
+                            <StepIndicator step={3} currentStep={logs?.step || 1} label={t('rag.step_3')} />
                          </div>
                          <div className="mt-8 p-3 bg-secondary/30 rounded-lg border border-border/30 h-10 flex items-center overflow-hidden">
                             <p className="text-xs font-mono text-muted-foreground/80 truncate w-full">
-                                &gt; {logs?.message || "Initializing system..."}
+                                &gt; {logs?.message || t('rag.initializing')}
                             </p>
                          </div>
+                    </motion.div>
+                )}
+
+                {state === 'error' && (
+                    <motion.div key="error" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center text-center max-w-lg">
+                        <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-6 border border-red-500/20 shadow-[0_0_30px_-5px_rgba(239,68,68,0.3)]">
+                            <AlertCircle size={40} />
+                        </div>
+                        <h3 className="text-2xl font-medium mb-2 text-foreground">{t('rag.error_title')}</h3>
+                        <div className="bg-red-500/5 border border-red-500/10 rounded-xl p-4 mb-8 w-full">
+                            <p className="text-sm text-red-400 break-words font-mono">
+                                {logs?.message || t('rag.unknown_error')}
+                            </p>
+                        </div>
+                        <button onClick={reset} className="px-8 py-3 rounded-full bg-secondary hover:bg-secondary/80 text-foreground text-sm font-medium transition-colors border border-border">
+                            {t('rag.try_again')}
+                        </button>
                     </motion.div>
                 )}
 
@@ -248,12 +317,12 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
                         <div className="w-20 h-20 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mb-6 border border-green-500/20 shadow-[0_0_30px_-5px_rgba(34,197,94,0.3)]">
                             <Check size={40} />
                         </div>
-                        <h3 className="text-2xl font-medium mb-2 text-foreground">Ingestion Complete</h3>
+                        <h3 className="text-2xl font-medium mb-2 text-foreground">{t('rag.ingestion_complete')}</h3>
                         <p className="text-sm text-muted-foreground mb-8 max-w-xs">
-                            Checking Complete. The document is now indexed and ready for retrieval.
+                            {t('rag.ingestion_desc')}
                         </p>
                         <button onClick={reset} className="px-8 py-3 rounded-full bg-secondary hover:bg-secondary/80 text-foreground text-sm font-medium transition-colors border border-border">
-                            Process Another Document
+                            {t('rag.process_another')}
                         </button>
                     </motion.div>
                 )}

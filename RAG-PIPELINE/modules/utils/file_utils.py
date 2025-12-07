@@ -6,6 +6,7 @@ import hashlib
 import shutil
 from urllib.parse import urlparse, unquote
 from pathlib import Path
+from pypdf import PdfReader
 
 def is_url(path: str) -> bool:
     try:
@@ -19,14 +20,21 @@ def get_filename_from_cd(cd):
     return fname[0].strip().strip('"') if fname else None
 
 def clean_filename(filename: str) -> str:
-    """Sanitize filename by removing invalid characters."""
-    # Remove "Copy of" prefix often added by Drive
+    """Sanitize filename and ensure it's not too long."""
+    # Remove unwanted prefixes
     if filename.startswith("Bản sao của "): filename = filename[12:]
     elif filename.startswith("Copy of "): filename = filename[8:]
     
     # Remove invalid fs chars
     filename = re.sub(r'[\\/*?:"<>|]', "", filename)
-    return filename.strip()
+    filename = filename.strip()
+    
+    # Truncate if too long (max 100 chars for safety)
+    if len(filename) > 100:
+        base, ext = os.path.splitext(filename)
+        filename = base[:95] + ext
+        
+    return filename
 
 def download_file(url: str, output_dir: str = "downloads") -> str:
     os.makedirs(output_dir, exist_ok=True)
@@ -34,23 +42,85 @@ def download_file(url: str, output_dir: str = "downloads") -> str:
     if "drive.google.com" in url:
         print(f"[INFO] Downloading from Drive: {url}")
         try:
-            # gdown with output=None will download to CWD using the original filename
-            downloaded_path = gdown.download(url, output=None, quiet=False, fuzzy=True, use_cookies=False)
-            if not downloaded_path: raise Exception("gdown failed to return a path.")
+            # We don't know the filename yet, and gdown's fuzzy logic can return huge filenames.
+            # Best strategy: Let gdown download to a temp name first, OR rely on it but handle the move carefully.
+            # However, gdown with output=None writes to CWD using the remote name, which causes the crash.
+            # Fix: Use a temporary safe output name, then rename it if we can extract proper name, 
+            # or just use a generated name if the remote one is crazy.
             
-            # Get the filename gdown determined
-            original_fname = os.path.basename(downloaded_path)
-            cleaned_fname = clean_filename(original_fname)
+            # Attempt to get name from ID or use generic
+            file_id = None
+            match = re.search(r'/file/d/([a-zA-Z0-9_-]+)', url)
+            if match: file_id = match.group(1)
+            else:
+                 msg_match = re.search(r'id=([a-zA-Z0-9_-]+)', url)
+                 if msg_match: file_id = msg_match.group(1)
             
-            final_path = os.path.join(output_dir, cleaned_fname)
+            temp_name = f"gdown_temp_{file_id if file_id else hashlib.md5(url.encode()).hexdigest()}.pdf"
+            temp_path = os.path.join(output_dir, temp_name)
             
-            # Move from CWD to output_dir
-            # If downloaded_path is already absolute/relative to CWD, move it.
-            if os.path.abspath(downloaded_path) != os.path.abspath(final_path):
-                shutil.move(downloaded_path, final_path)
-                
-            return os.path.abspath(final_path)
+            if os.path.exists(temp_path) and os.path.getsize(temp_path) > 0:
+                print(f"[INFO] File already exists: {temp_path}. Skipping download.")
+                return os.path.abspath(temp_path)
             
+            # Tell gdown to download to this specific safe path
+            downloaded_path = gdown.download(url, output=temp_path, quiet=False, fuzzy=True, use_cookies=False)
+            
+            # Try to rename using PDF metadata title if available
+            renamed = False
+            try:
+                reader = PdfReader(downloaded_path)
+                if reader.metadata and reader.metadata.title:
+                    clean_title = clean_filename(reader.metadata.title)
+                    if clean_title and len(clean_title) > 5: # Basic validity check
+                        if not clean_title.lower().endswith(".pdf"): clean_title += ".pdf"
+                        
+                        new_path = os.path.join(output_dir, clean_title)
+                        if new_path != downloaded_path:
+                            # Handle collision
+                            if os.path.exists(new_path):
+                                 base, ext = os.path.splitext(clean_title)
+                                 clean_title = f"{base}_{file_id[:8]}{ext}"
+                                 new_path = os.path.join(output_dir, clean_title)
+                            
+                            os.rename(downloaded_path, new_path)
+                            print(f"[INFO] Renamed (Metadata) {temp_name} -> {clean_title}")
+                            downloaded_path = new_path
+                            renamed = True
+            except Exception as e:
+                print(f"[WARN] Failed to rename based on metadata: {e}")
+
+            # If metadata rename failed, try to get name from Drive page title
+            if not renamed:
+                try:
+                    print(f"[INFO] Fetching Drive page title for {url}...")
+                    page_resp = requests.get(url, timeout=10)
+                    if page_resp.status_code == 200:
+                        # Regex for <title>Filename - Google Drive</title>
+                        # content="Basic Clinical Pharmacology, 14th Edition (Bertram G. Katzung) (z-lib.org).pdf - Google Drive"
+                        # or <title>...
+                        title_match = re.search(r'<title>(.*?) - Google Drive</title>', page_resp.text)
+                        if title_match:
+                            raw_name = title_match.group(1)
+                            clean_name = clean_filename(raw_name)
+                            if clean_name:
+                                if not clean_name.lower().endswith(".pdf"): clean_name += ".pdf"
+                                new_path = os.path.join(output_dir, clean_name)
+                                
+                                # Handle collision
+                                if os.path.exists(new_path):
+                                     base, ext = os.path.splitext(clean_name)
+                                     clean_name = f"{base}_{file_id[:8]}{ext}"
+                                     new_path = os.path.join(output_dir, clean_name)
+                                
+                                os.rename(downloaded_path, new_path)
+                                print(f"[INFO] Renamed (Page Title) {temp_name} -> {clean_name}")
+                                downloaded_path = new_path
+                except Exception as ex:
+                    print(f"[WARN] Failed to rename based on Drive page: {ex}")
+            
+            return os.path.abspath(downloaded_path)
+
         except Exception as e:
             if "Permission denied" in str(e): raise Exception(f"Drive Access Denied: {e}")
             raise Exception(f"Drive Download Failed: {e}")

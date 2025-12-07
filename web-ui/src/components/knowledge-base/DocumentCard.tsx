@@ -1,7 +1,7 @@
 import React from 'react';
 import { FileText, CheckCircle2, Sparkles, Loader2, Trash2, FileType, Clock } from 'lucide-react';
 import { FileDropzone } from './FileDropzone';
-import { useSettings } from '@/context/SettingsContext';
+import { useTranslation } from 'react-i18next';
 
 interface DocumentCardProps {
   data: any;
@@ -13,7 +13,7 @@ interface DocumentCardProps {
 }
 
 export function DocumentCard({ data, onFileLoaded, onAnalyze, onDelete, status, isAnalyzing }: DocumentCardProps) {
-  const { t } = useSettings();
+  const { t } = useTranslation('common');
 
   if (!data) {
     return (
@@ -83,7 +83,7 @@ export function DocumentCard({ data, onFileLoaded, onAnalyze, onDelete, status, 
             <button
               onClick={onDelete}
               className="flex items-center justify-center w-10 h-10 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-muted-foreground hover:text-red-400 rounded-full transition-all duration-200 hover:scale-105"
-              title={t('delete')}
+              title={t('knowledgeBase.delete')}
             >
               <Trash2 size={18} />
             </button>
@@ -93,7 +93,7 @@ export function DocumentCard({ data, onFileLoaded, onAnalyze, onDelete, status, 
             className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/20 hover:scale-[1.02]"
           >
             <Sparkles size={16} />
-            {t('analyze_button')}
+            {t('knowledgeBase.analyze_button')}
           </button>
         </div>
       )}

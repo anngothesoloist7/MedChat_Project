@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 };
 
 import { SettingsProvider } from "@/context/SettingsContext";
+import { ThemeProvider } from "@/components/theme-provider";
 
 export default function RootLayout({
   children,
@@ -25,11 +26,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
-        <SettingsProvider>
-          {children}
-        </SettingsProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <SettingsProvider>
+            {children}
+          </SettingsProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

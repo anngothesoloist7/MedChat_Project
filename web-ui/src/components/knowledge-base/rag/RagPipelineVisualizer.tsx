@@ -1,34 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Scan, Database, CheckCircle, BrainCircuit } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
-// Configuration based on your rag-pipeline.md
-const PHASES = [
-  {
-    id: 1,
-    title: "Phase 1: Splitting & Metadata",
-    description: "Splitting large PDF & Extracting Metadata (Gemini)",
-    icon: FileText,
-    color: "text-blue-500",
-    bg: "bg-blue-500"
-  },
-  {
-    id: 2,
-    title: "Phase 2: OCR & Parsing",
-    description: "Mistral AI OCR & Medical Translation",
-    icon: Scan,
-    color: "text-purple-500",
-    bg: "bg-purple-500"
-  },
-  {
-    id: 3,
-    title: "Phase 3: Vector Indexing",
-    description: "Hybrid Embedding (Dense+Sparse) -> Qdrant",
-    icon: Database,
-    color: "text-emerald-500",
-    bg: "bg-emerald-500"
-  }
-];
 
 interface RagPipelineVisualizerProps {
     currentPhase?: number | null;
@@ -39,6 +13,34 @@ interface RagPipelineVisualizerProps {
 const RagPipelineVisualizer = ({ currentPhase = 1, isLoading = true, currentAction }: RagPipelineVisualizerProps) => {
   // Ensure currentPhase is valid (1-3), default to 1 if null/undefined
   const activePhase = currentPhase || 1;
+  const { t } = useTranslation('common');
+
+  const PHASES = [
+    {
+      id: 1,
+      title: t('pipeline.phase1.title', "Phase 1: Splitting & Metadata"),
+      description: t('pipeline.phase1.description', "Splitting large PDF & Extracting Metadata (Gemini)"),
+      icon: FileText,
+      color: "text-blue-500",
+      bg: "bg-blue-500"
+    },
+    {
+      id: 2,
+      title: t('pipeline.phase2.title', "Phase 2: OCR & Parsing"),
+      description: t('pipeline.phase2.description', "Mistral AI OCR & Medical Translation"),
+      icon: Scan,
+      color: "text-purple-500",
+      bg: "bg-purple-500"
+    },
+    {
+      id: 3,
+      title: t('pipeline.phase3.title', "Phase 3: Vector Indexing"),
+      description: t('pipeline.phase3.description', "Hybrid Embedding (Dense+Sparse) -> Qdrant"),
+      icon: Database,
+      color: "text-emerald-500",
+      bg: "bg-emerald-500"
+    }
+  ];
 
   return (
     <div className="w-full max-w-2xl p-6 bg-slate-900 rounded-xl shadow-2xl border border-slate-800 mx-auto">
@@ -84,10 +86,10 @@ const RagPipelineVisualizer = ({ currentPhase = 1, isLoading = true, currentActi
            <div className="flex justify-between items-end">
              <div>
                <h3 className="text-slate-200 font-bold text-sm">
-                 {isLoading ? PHASES[activePhase - 1]?.title : "Pipeline Completed"}
+                 {isLoading ? PHASES[activePhase - 1]?.title : t('pipeline.completed', "Pipeline Completed")}
                </h3>
                <p className="text-slate-400 text-xs mt-1">
-                 {isLoading ? PHASES[activePhase - 1]?.description : "All chunks indexed successfully."}
+                 {isLoading ? PHASES[activePhase - 1]?.description : t('pipeline.success', "All chunks indexed successfully.")}
                </p>
              </div>
              {isLoading && currentAction && (

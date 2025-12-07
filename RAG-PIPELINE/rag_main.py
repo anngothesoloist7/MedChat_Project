@@ -41,6 +41,9 @@ def process_pdf(pdf_file: Path, phases: dict):
         except Exception as e:
             pipeline_logger.log_phase("Split", "ERROR", str(e))
             print(f"[ERROR] Split phase failed: {e}")
+            # CRITICAL: Stop entire pipeline if Phase 1 (Metadata/Split) fails
+            # This ensures no bad data goes to OCR or Embedding
+            print("[INFO] Pipeline Stopped due to Phase 1 Error.")
             return
     else:
         print("\n[INFO] Phase 1: Skipped (Checking existing...)")

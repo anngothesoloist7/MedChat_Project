@@ -151,7 +151,17 @@ def extract_metadata(file_path: Path, pdf_id: str = None):
         meta_path.write_text(meta_json, encoding="utf-8")
         print(f"[SUCCESS] Metadata saved: {meta_path.name}")
         
-    except Exception as e: print(f"[ERROR] Metadata failed: {e}")
+    except Exception as e: 
+        print(f"[ERROR] Metadata failed: {e}")
+        # If it is a quota error (429), we MUST stop the process and notify the user
+        error_str = str(e)
+        if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+            raise Exception("Gemini API Quota Exceeded. Please update your API key or try again later.")
+        
+        # For other critical metadata failures, we might also want to stop if metadata is strictly required
+        # For now, let's enforce metadata presence as per user request to "stop whole process"
+        raise Exception(f"Metadata Extraction Failed: {e}")
+            
     finally: 
         if temp_pdf.exists(): os.remove(temp_pdf)
 

@@ -1,4 +1,4 @@
-export type PipelineState = 'idle' | 'checking' | 'confirming' | 'processing' | 'completed';
+export type PipelineState = 'idle' | 'checking' | 'confirming' | 'processing' | 'completed' | 'error';
 
 export interface Book {
     id: string;

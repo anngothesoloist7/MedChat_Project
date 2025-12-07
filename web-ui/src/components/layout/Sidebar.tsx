@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Plus, MessageSquare, Settings, HelpCircle, History, Menu, Gem, Sparkles, MoreVertical, Trash2, Edit2, Check, X, Loader2, FileText } from 'lucide-react';
+import { MessageSquare, Settings, HelpCircle, History, Menu, Gem, Sparkles, MoreVertical, Trash2, Edit2, Check, X, Loader2, FileText, Plus as PlusIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { createPortal } from 'react-dom';
+import { Button } from "@/components/ui/button";
 import { createClient } from '@/utils/supabase/client';
-import { useSettings } from '@/context/SettingsContext';
+import { useTranslation } from 'react-i18next';
 import { SettingsModal } from './SettingsModal';
 import { getDeviceId } from '@/utils/device';
 
@@ -38,7 +39,7 @@ export function Sidebar({ isOpen, onToggle, activeTab, onTabChange, onLoadSessio
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const supabase = createClient();
-  const { t } = useSettings();
+  const { t } = useTranslation('common');
   const SESSIONS_PER_PAGE = 50;
 
   useEffect(() => {
@@ -316,69 +317,74 @@ export function Sidebar({ isOpen, onToggle, activeTab, onTabChange, onLoadSessio
           </button>
         </div>
 
-        {/* New Chat Button */}
-        <div className={clsx("mb-4", isOpen ? "px-4" : "px-2")}>
-          <button 
-            onClick={() => {
-               onTabChange('chat');
-               if (window.innerWidth < 768) {
-                 onToggle();
-               }
-            }}
-            className={clsx(
-              "flex items-center gap-3 bg-input hover:bg-muted text-foreground rounded-full transition-colors border border-border",
-              isOpen ? "px-4 py-3 w-full" : "w-10 h-10 justify-center mx-auto p-0"
-            )}
-          >
-            <Plus size={20} className="text-muted-foreground" />
-            {isOpen && <span className="font-medium text-sm">{t('new_chat')}</span>}
-          </button>
+        {/* PRIMARY ACTIONS - Fixed (No Scroll) */}
+        <div className={clsx("flex-shrink-0 px-2 flex flex-col gap-2 mb-4", isOpen && "px-4")}>
+             {/* New Chat Button */}
+             <Button
+                 onClick={() => {
+                    onTabChange('chat');
+                    activeTab !== 'chat' && window.innerWidth < 768 && onToggle();
+                 }}
+                 variant="ghost" // Changed to ghost to allow custom bg control
+                 className={clsx(
+                   "rounded-full shadow-sm border border-border transition-all duration-200", // border-border (full opacity)
+                   "bg-background text-foreground hover:bg-accent hover:text-accent-foreground", // bg-background (black/white) pops on secondary (grey)
+                   isOpen ? "w-full justify-start pl-3 gap-3 h-12" : "w-10 h-10 p-0 justify-center mx-auto"
+                 )}
+              >
+               <PlusIcon size={18} />
+               {isOpen && <span className="font-medium">{t('sidebar.newChat')}</span>}
+             </Button>
+
+             {/* Knowledge Base Button */}
+             <button
+              onClick={() => {
+                onTabChange('ehr');
+                activeTab !== 'ehr' && window.innerWidth < 768 && onToggle();
+              }}
+              className={clsx(
+                "flex items-center transition-all duration-200 group relative border",
+                "rounded-full shadow-sm",
+                // Active State
+                activeTab === 'ehr' 
+                    ? "bg-emerald-100 dark:bg-emerald-950/40 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-medium" 
+                    : "bg-background border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                // Layout
+                isOpen ? "w-full justify-start pl-3 gap-3 h-12" : "w-10 h-10 justify-center mx-auto"
+              )}
+            >
+               <div className={clsx(
+                 "flex items-center justify-center transition-colors",
+                 activeTab === 'ehr' ? "text-emerald-600 dark:text-emerald-400" : "text-emerald-600 dark:text-emerald-500 opacity-80 group-hover:opacity-100" 
+              )}>
+                 <Gem size={18} />
+              </div>
+              {isOpen && (
+                 <span className="font-medium truncate">{t('sidebar.knowledgeBase')}</span>
+              )}
+            </button>
         </div>
 
-        {/* Navigation / Gems */}
+        {/* SCROLLABLE CONTENT */}
         <div 
           className={clsx("flex-1 overflow-y-auto custom-scrollbar", isOpen ? "px-4" : "px-2")}
           onScroll={handleScroll}
         >
+          {/* Gems Section Title - Only if needed, but since we pulled button out, maybe we don't need this label anymore? 
+              User's image showed "KNOWLEDGE BASE" label. I'll keep it but maybe it's redundant now? 
+              Actually, usually "KNOWLEDGE BASE" header implies the section below is checking it.
+              Let's remove the "KNOWLEDGE BASE" text label if the button serves as the header/action itself, 
+              or keep it if there were multiple items. For now, the button acts as the main toggle.
+          */} 
           
-          {/* Gems Section */}
-          {isOpen && <div className="mb-2 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('gems')}</div>}
-          
-          <div className={clsx("space-y-1", isOpen ? "mb-6" : "mb-4")}>
-             {/* MedChat Gem (EHR) */}
-             <button
-              onClick={() => {
-                onTabChange('ehr');
-                if (window.innerWidth < 768) {
-                  onToggle();
-                }
-              }}
-              className={clsx(
-                "flex items-center gap-3 transition-colors group",
-                isOpen ? "w-full px-3 py-2 rounded-full text-sm" : "w-10 h-10 justify-center mx-auto rounded-full",
-                activeTab === 'ehr' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
-              )}
-            >
-               <div className={clsx(
-                 "flex items-center justify-center transition-all duration-200",
-                 isOpen ? "w-8 h-8 rounded-full" : "w-full h-full rounded-full",
-                 "bg-transparent group-hover:bg-emerald-500/20",
-                 activeTab === 'ehr' ? "text-emerald-500" : "text-emerald-600 dark:text-emerald-400"
-              )}>
-                 <Gem size={20} />
-              </div>
-              {isOpen && (
-                 <div className="flex flex-col items-start">
-                    <span className="font-medium">{t('ehr_analysis')}</span>
-                 </div>
-              )}
-            </button>
+          <div className={clsx("space-y-1 mt-2", isOpen ? "mb-6" : "mb-4")}>
+              {/* Empty spacer for now, or we can just remove the div around it since we moved the button up */}
           </div>
 
           {/* Recent History - Only show when sidebar is open */}
           {isOpen && (
             <>
-              <div className="mb-2 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('recent')}</div>
+              <div className="mb-2 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('sidebar.history')}</div>
               
               <div className="space-y-1">
                 {isLoading ? (
@@ -471,7 +477,7 @@ export function Sidebar({ isOpen, onToggle, activeTab, onTabChange, onLoadSessio
                     })}
                     
                     {recentSessions.length === 0 && (
-                       <div className="px-4 py-2 text-xs text-muted-foreground italic">{t('no_history')}</div>
+                       <div className="px-4 py-2 text-xs text-muted-foreground italic">{t('sidebar.no_history')}</div>
                     )}
                     
                     {isLoadingMore && (
@@ -496,7 +502,7 @@ export function Sidebar({ isOpen, onToggle, activeTab, onTabChange, onLoadSessio
               className="w-full flex items-center gap-3 px-4 py-2 rounded-full text-sm text-muted-foreground hover:bg-muted transition-colors"
             >
               <Settings size={20} />
-              <span>{t('settings')}</span>
+              <span>{t('sidebar.settings')}</span>
             </button>
           )}
         </div>

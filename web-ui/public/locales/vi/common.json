@@ -1,0 +1,110 @@
+{
+  "greeting": "Xin chào",
+  "hello": "Xin chào, Bạn tôi",
+  "how_help": "Tôi có thể giúp gì cho bạn hôm nay?",
+  "enter_prompt": "Nhập câu hỏi tại đây...",
+  "reasoning_1": "Đang phân tích yêu cầu...",
+  "reasoning_2": "Đang tra cứu kiến thức y khoa...",
+  "reasoning_3": "Đang xem xét ngữ cảnh lâm sàng...",
+  "reasoning_4": "Đang tổng hợp câu trả lời...",
+  "sidebar": {
+    "newChat": "Chat mới",
+    "history": "Lịch sử",
+    "settings": "Cài đặt",
+    "knowledgeBase": "Kho kiến thức"
+  },
+  "chat": {
+    "placeholder": "Nhập tin nhắn...",
+    "send": "Gửi",
+    "thought_for": "Suy nghĩ trong",
+    "cancel": "Hủy",
+    "retry": "Thử lại",
+    "update": "Cập nhật",
+    "disclaimer": "AI có thể mắc lỗi. Vui lòng kiểm tra thông tin quan trọng."
+  },
+  "knowledgeBase": {
+    "title": "Kho kiến thức",
+    "upload": "Tải lên tài liệu",
+    "delete": "Xóa",
+    "analyze_button": "Phân tích tài liệu",
+    "upload_error_type": "Loại tệp không hợp lệ. Vui lòng tải lên PDF.",
+    "file_loaded": "Tệp đã được tải lên",
+    "click_upload": "Nhấn để tải lên",
+    "drag_drop": "hoặc kéo và thả",
+    "json_hint": "Chỉ chấp nhận tệp PDF dưới 50MB"
+  },
+  "settings": {
+      "title": "Cài đặt",
+      "theme": "Giao diện",
+      "language": "Ngôn ngữ",
+      "english": "Tiếng Anh",
+      "vietnamese": "Tiếng Việt",
+      "light": "Sáng",
+      "dark": "Tối",
+      "close": "Đóng"
+  },
+  "pipeline": {
+    "phase1": {
+        "title": "Giai đoạn 1: Chia nhỏ & Siêu dữ liệu",
+        "description": "Chia nhỏ PDF & Trích xuất Siêu dữ liệu (Gemini)"
+    },
+    "phase2": {
+        "title": "Giai đoạn 2: OCR & Phân tích",
+        "description": "OCR Mistral AI & Dịch thuật Y khoa"
+    },
+    "phase3": {
+        "title": "Giai đoạn 3: Đánh chỉ mục Vector",
+        "description": "Nhúng hỗn hợp (Dense+Sparse) -> Qdrant"
+    },
+    "completed": "Quy trình Hoàn tất",
+    "success": "Đã đánh chỉ mục thành công."
+  },
+  "rag": {
+    "processor": "Bộ xử lý RAG",
+    "title": "Kho kiến thức",
+    "ask_placeholder": "Hỏi tài liệu của bạn...",
+    "upload_pdf": "Tải lên PDF",
+    "drag_drop": "Hỗ trợ kéo & thả",
+    "or": "HOẶC",
+    "paste_url": "Dán URL...",
+    "import_web": "Nhập từ web hoặc drive",
+    "verifying": "Đang xác minh siêu dữ liệu nguồn...",
+    "file_exists": "Tệp đã được lập chỉ mục. Tiếp tục ghi đè?",
+    "cancel": "Hủy",
+    "overwrite": "Ghi đè",
+    "start_processing": "Bắt đầu xử lý",
+    "step_1": "Phân mảnh thông minh",
+    "step_2": "OCR & Dịch thuật",
+    "step_3": "Lập chỉ mục Vector",
+    "initializing": "Đang khởi tạo hệ thống...",
+    "error_title": "Lỗi Quy trình",
+    "unknown_error": "Đã xảy ra lỗi không xác định trong quá trình xử lý.",
+    "try_again": "Thử lại",
+    "ingestion_complete": "Hoàn tất nhập liệu",
+    "ingestion_desc": "Kiểm tra hoàn tất. Tài liệu đã được lập chỉ mục và sẵn sàng để truy xuất.",
+    "process_another": "Xử lý tài liệu khác",
+    "author": "Tác giả",
+    "published": "Xuất bản",
+    "indexed": "Đã lập chỉ mục",
+    "chunks": "mảnh",
+    "keywords": "Từ khóa",
+    "delete_index": "Xóa khỏi chỉ mục",
+    "deleting": "Đang xóa...",
+    "delete_confirm": "Bạn có chắc chắn muốn xóa sách này khỏi chỉ mục không? Hành động này không thể hoàn tác.",
+    "filter_docs": "Lọc tài liệu...",
+    "doc_list": "Danh sách tài liệu",
+    "loading": "Đang tải kho kiến thức...",
+    "no_docs": "Chưa có tài liệu nào được lập chỉ mục",
+    "doc_insight": "Thông tin chi tiết tài liệu",
+    "compact": "Thu gọn",
+    "full_width": "Toàn màn hình",
+    "label_dist": "Phân bố nhãn",
+    "lang_dist": "Phân bố ngôn ngữ",
+    "documents": "Tài liệu",
+    "vector_points": "Điểm Vector",
+    "avg_chunk": "Độ dài mảnh TB",
+    "connection_error": "Lỗi kết nối",
+    "thinking": "Đang suy nghĩ",
+    "no_lang_data": "Không có dữ liệu ngôn ngữ"
+  }
+}

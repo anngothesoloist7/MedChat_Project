@@ -164,6 +164,26 @@ def delete_book(pdf_id: str):
         print(f"[ERROR] Deleting book {pdf_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.delete("/files/{filename}")
+def delete_raw_file(filename: str):
+    """Delete a raw file from the database/raw directory."""
+    try:
+        # Basic sanitization to prevent directory traversal
+        if ".." in filename or "/" in filename or "\\" in filename:
+             raise HTTPException(status_code=400, detail="Invalid filename")
+             
+        file_path = Config.RAW_DIR / filename
+        if file_path.exists():
+            os.remove(file_path)
+            print(f"[INFO] Deleted raw file: {file_path}")
+            return {"message": f"File '{filename}' deleted"}
+        else:
+            raise HTTPException(status_code=404, detail="File not found")
+            
+    except Exception as e:
+        print(f"[ERROR] Deleting raw file {filename}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/vectors")
 def get_vectors(limit: int = 200):
     """Fetch vectors with metadata for UMAP visualization."""
@@ -239,44 +259,71 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception:
         manager.disconnect(websocket)
 
-# --- Patch Pipeline Logger for WebSocket ---
-pipeline_logger_instance = rag_main.pipeline_logger
+# --- WebSocket Log Integration ---
+
 running_loop = None
+
+
+# Global variable to store the last checked display name for cleaner logging
+last_checked_display_name = None
+
+def parse_and_broadcast_log(message: str):
+    """Parse log message and broadcast to UI."""
+    # Replace temp filename with display name if available
+    if last_checked_display_name and "gdown_temp_" in message:
+        # Simple string replacement for better UI experience
+        import re
+        message = re.sub(r'gdown_temp_[a-zA-Z0-9_\-]+\.pdf', last_checked_display_name, message)
+    
+    # Default values
+    msg_payload = {"message": message}
+    
+    # Try to parse Phase/Status
+    # Format: PHASE: {phase_name} | STATUS: {status} | {details}
+    if message.startswith("PHASE:"):
+        ensure_parts = message.split("|")
+        if len(ensure_parts) >= 2:
+            phase_part = ensure_parts[0].replace("PHASE:", "").strip()
+            status_part = ensure_parts[1].replace("STATUS:", "").strip()
+            details_part = ensure_parts[2] if len(ensure_parts) > 2 else ""
+            
+            # Use the full message as display message, or just details?
+            # User wants [INFO], so maybe just pass the raw message as "message"
+            # But the UI expects "message" for the log line.
+            
+            # Map Phase to Step
+            step_map = {"Split": 1, "Split & Metadata": 1, "OCR": 2, "OCR & Parsing": 2, "Embedding": 3}
+            # Handle compound phases or loose matches
+            step = 1
+            for key, val in step_map.items():
+                if key in phase_part: 
+                    step = val
+                    break
+            
+            # Map Status
+            status_lower = status_part.lower()
+            ui_status = "processing"
+            if "completed" in status_lower: ui_status = "completed"
+            elif "error" in status_lower: ui_status = "error"
+            
+            msg_payload["step"] = step
+            msg_payload["status"] = ui_status
+    
+    if running_loop and manager:
+        asyncio.run_coroutine_threadsafe(manager.broadcast(msg_payload), running_loop)
+
+from modules.utils.pipeline_logger import pipeline_logger
 
 @app.on_event("startup")
 async def startup_event():
-    global running_loop
-    running_loop = asyncio.get_running_loop()
-
-def broadcast_log(phase, status, details=""):
-    step_map = {"Split": 1, "OCR": 2, "Embedding": 3}
-    base_phase = phase.split(" ")[0] if " " in phase else phase
-    step = step_map.get(base_phase, 0)
-    
-    # Map status to UI expected status
-    status_lower = status.lower()
-    if status_lower == "started": ui_status = "processing"
-    elif status_lower == "completed": ui_status = "completed"
-    elif status_lower == "skipped": ui_status = "skipped"
-    elif status_lower == "error": ui_status = "error"
-    else: ui_status = "processing"
-
-    msg = {
-        "step": step,
-        "status": ui_status,
-        "message": f"[{phase}] {status}: {details}"
-    }
-    
-    if running_loop and manager:
-        asyncio.run_coroutine_threadsafe(manager.broadcast(msg), running_loop)
-
-# Apply Patch
-original_log_phase = pipeline_logger_instance.log_phase
-def patched_log_phase(phase, status, details=""):
-    broadcast_log(phase, status, details)
-    original_log_phase(phase, status, details)
-
-pipeline_logger_instance.log_phase = patched_log_phase
+    try:
+        global running_loop
+        running_loop = asyncio.get_running_loop()
+        
+        # Register callback
+        pipeline_logger.register_callback(parse_and_broadcast_log)
+    except Exception as e:
+        print(f"[ERROR] Startup event failed: {e}")
 
 def run_pipeline_task(file_path: Path, phases: dict):
     try:
@@ -303,7 +350,7 @@ async def process_document(
     p1: bool = Form(True),
     p2: bool = Form(True),
     p3: bool = Form(True),
-    clean: bool = Form(False),
+    clean: bool = Form(True),
     check_only: bool = Form(False),
     overwrite: bool = Form(False)
 ):
@@ -356,13 +403,37 @@ async def process_document(
             # Check Qdrant
             q_check = check_qdrant_existence(pdf_file)
             
+            # Get file stats
+            file_stats = {"size": 0, "pages": 0}
+            display_name = pdf_file.name
+            
+            global last_checked_display_name
+            last_checked_display_name = display_name
+            try:
+                if pdf_file.exists():
+                     file_stats["size"] = pdf_file.stat().st_size
+                     # Try to get page count if it's a valid PDF
+                     try:
+                         from pypdf import PdfReader
+                         reader = PdfReader(str(pdf_file))
+                         file_stats["pages"] = len(reader.pages)
+                         if reader.metadata and reader.metadata.title:
+                             title = reader.metadata.title
+                             if len(title) > 60: title = title[:57] + "..."
+                             display_name = title
+                             last_checked_display_name = display_name
+                     except: pass
+            except: pass
+
             results.append({
                 "filename": pdf_file.name,
+                "display_name": display_name,
                 "exists_local": len(existing_split) > 0,
                 "exists_qdrant": q_check.get("exists", False),
                 "qdrant_count": q_check.get("count", 0),
                 "exists": len(existing_split) > 0 or q_check.get("exists", False),
-                "count": max(len(existing_split), q_check.get("count", 0))
+                "count": max(len(existing_split), q_check.get("count", 0)),
+                "stats": file_stats
             })
             
         return {"status": "checked", "results": results}

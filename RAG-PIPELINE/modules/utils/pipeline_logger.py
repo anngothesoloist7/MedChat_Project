@@ -21,11 +21,23 @@ class PipelineLogger:
             ch.setFormatter(formatter)
             self.logger.addHandler(ch)
 
+        self.callbacks = []
+
+    def register_callback(self, callback):
+        """Register a function to be called with log messages."""
+        self.callbacks.append(callback)
+
+    def _notify_callbacks(self, message: str):
+        for cb in self.callbacks:
+            try: cb(message)
+            except: pass
+
     def log_phase(self, phase_name: str, status: str, details: str = ""):
         msg = f"PHASE: {phase_name} | STATUS: {status} | {details}"
         if status == "ERROR": self.logger.error(msg)
         elif status == "WARNING": self.logger.warning(msg)
         else: self.logger.info(msg)
+        self._notify_callbacks(msg)
 
     def log_phase_1(self, pdf_name: str, file_id: str, exists: bool, collection_status: str, points_deleted: bool):
         details = (f"FileID: {file_id[:8]}... | Exists: {exists} | "
@@ -42,8 +54,18 @@ class PipelineLogger:
                    f"Collection Size: {collection_size_before} -> {collection_size_after}")
         self.log_phase("Embedding", "COMPLETED", f"{book_name} | {details}")
 
-    def log_info(self, message: str): self.logger.info(message)
-    def log_warning(self, message: str): self.logger.warning(message)
-    def log_error(self, message: str): self.logger.error(message)
+    def log_info(self, message: str): 
+        # Ensure message has [INFO] prefix if not already present
+        if not message.startswith("["): message = f"[INFO] {message}"
+        self.logger.info(message)
+        self._notify_callbacks(message)
+
+    def log_warning(self, message: str): 
+        self.logger.warning(message)
+        self._notify_callbacks(message)
+
+    def log_error(self, message: str): 
+        self.logger.error(message)
+        self._notify_callbacks(message)
 
 pipeline_logger = PipelineLogger()

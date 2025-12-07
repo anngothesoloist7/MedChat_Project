@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { clsx } from "clsx";
-import { useSettings } from "@/context/SettingsContext";
+import { useTranslation } from 'react-i18next';
 
 export interface Message {
   id: string;
@@ -46,7 +46,7 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
-  const { t } = useSettings();
+  const { t } = useTranslation('common');
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(message.content);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -288,7 +288,7 @@ export function MessageBubble({
               className={clsx(
                 "text-[15px] leading-relaxed",
                 isUser
-                  ? "px-5 py-3.5 bg-secondary text-foreground rounded-[20px]"
+                  ? "px-5 py-3.5 bg-primary text-primary-foreground rounded-[20px]"
                   : "text-foreground pl-0 w-full"
               )}
             >

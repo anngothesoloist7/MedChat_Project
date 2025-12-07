@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { Upload, FileJson, X, CheckCircle } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useSettings } from '@/context/SettingsContext';
+import { useTranslation } from 'react-i18next';
 
 interface FileDropzoneProps {
   onFileLoaded: (data: any) => void;
@@ -12,7 +12,7 @@ export function FileDropzone({ onFileLoaded, disabled }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { t } = useSettings();
+  const { t } = useTranslation('common');
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -26,7 +26,7 @@ export function FileDropzone({ onFileLoaded, disabled }: FileDropzoneProps) {
 
   const processFile = useCallback((file: File) => {
     if (file.type !== 'application/pdf' && !file.name.endsWith('.pdf')) {
-      setError(t('upload_error_type'));
+      setError(t('knowledgeBase.upload_error_type'));
       return;
     }
 
@@ -58,7 +58,7 @@ export function FileDropzone({ onFileLoaded, disabled }: FileDropzoneProps) {
             <FileJson size={20} />
           </div>
           <div>
-            <div className="font-medium text-sm text-emerald-500">{t('file_loaded')}</div>
+            <div className="font-medium text-sm text-emerald-500">{t('knowledgeBase.file_loaded')}</div>
             <div className="text-xs text-muted-foreground">{fileName}</div>
           </div>
         </div>
@@ -94,10 +94,10 @@ export function FileDropzone({ onFileLoaded, disabled }: FileDropzoneProps) {
             <Upload size={24} />
           </div>
           <p className="mb-1 text-sm font-medium text-foreground">
-            <span className="font-semibold text-primary">{t('click_upload')}</span> {t('drag_drop')}
+            <span className="font-semibold text-primary">{t('knowledgeBase.click_upload')}</span> {t('knowledgeBase.drag_drop')}
           </p>
           <p className="text-xs text-muted-foreground">
-            {t('json_hint')}
+            {t('knowledgeBase.json_hint')}
           </p>
         </div>
         <input 

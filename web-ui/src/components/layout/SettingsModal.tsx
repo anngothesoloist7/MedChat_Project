@@ -2,10 +2,9 @@
 
 import React from 'react';
 import { X, Moon, Sun, Globe } from 'lucide-react';
-import { useSettings } from '@/context/SettingsContext';
 import { clsx } from 'clsx';
-
 import { createPortal } from 'react-dom';
+import { useSettings } from '@/context/SettingsContext';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -27,13 +26,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   if (!portalRoot) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-[#1e1f20] text-white rounded-2xl w-full max-w-[400px] p-6 shadow-2xl border border-[#3c4043]">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-secondary text-secondary-foreground rounded-2xl w-full max-w-[400px] p-6 shadow-2xl border border-border">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-normal">Settings</h2>
+          <h2 className="text-xl font-normal text-foreground">{t('settings.title')}</h2>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-[#3c4043] rounded-full transition-colors text-gray-400 hover:text-white"
+            className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground"
           >
             <X size={20} />
           </button>
@@ -42,41 +41,47 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         <div className="space-y-6">
           {/* Language Setting */}
           <div className="space-y-3">
-            <label className="text-xs font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
               <Globe size={14} />
-              LANGUAGE
+              {t('settings.language')}
             </label>
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={() => setLanguage('en')}
+                onClick={() => {
+                    console.log('Switching to English');
+                    setLanguage('en');
+                }}
                 className={clsx(
                   "px-4 py-2.5 rounded-lg text-sm font-medium transition-all border",
                   language === 'en'
-                    ? "bg-[#1a73e8] text-white border-[#1a73e8]"
-                    : "bg-transparent text-gray-300 border-[#5f6368] hover:bg-[#3c4043]"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-transparent text-muted-foreground border-border hover:bg-muted"
                 )}
               >
-                English
+                {t('settings.english')}
               </button>
               <button
-                onClick={() => setLanguage('vi')}
+                onClick={() => {
+                    console.log('Switching to Vietnamese');
+                    setLanguage('vi');
+                }}
                 className={clsx(
                   "px-4 py-2.5 rounded-lg text-sm font-medium transition-all border",
                   language === 'vi'
-                    ? "bg-[#1a73e8] text-white border-[#1a73e8]"
-                    : "bg-transparent text-gray-300 border-[#5f6368] hover:bg-[#3c4043]"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-transparent text-muted-foreground border-border hover:bg-muted"
                 )}
               >
-                Vietnamese
+                {t('settings.vietnamese')}
               </button>
             </div>
           </div>
 
           {/* Theme Setting */}
           <div className="space-y-3">
-            <label className="text-xs font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
               <Moon size={14} />
-              THEME
+              {t('settings.theme')}
             </label>
             <div className="grid grid-cols-2 gap-3">
               <button
@@ -84,36 +89,36 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 className={clsx(
                   "px-4 py-2.5 rounded-lg text-sm font-medium transition-all border flex items-center justify-center gap-2",
                   theme === 'light'
-                    ? "bg-[#1a73e8] text-white border-[#1a73e8]"
-                    : "bg-transparent text-gray-300 border-[#5f6368] hover:bg-[#3c4043]"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-transparent text-muted-foreground border-border hover:bg-muted"
                 )}
               >
                 <Sun size={16} />
-                Light
+                {t('settings.light')}
               </button>
               <button
                 onClick={() => setTheme('dark')}
                 className={clsx(
                   "px-4 py-2.5 rounded-lg text-sm font-medium transition-all border flex items-center justify-center gap-2",
                   theme === 'dark'
-                    ? "bg-[#1a73e8] text-white border-[#1a73e8]"
-                    : "bg-transparent text-gray-300 border-[#5f6368] hover:bg-[#3c4043]"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-transparent text-muted-foreground border-border hover:bg-muted"
                 )}
               >
                 <Moon size={16} />
-                Dark
+                {t('settings.dark')}
               </button>
             </div>
           </div>
         </div>
 
         <div className="mt-8 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 bg-[#e8eaed] hover:bg-[#d2e3fc] text-[#1f1f1f] rounded-full text-sm font-medium transition-colors"
-          >
-            Close
-          </button>
+                <button
+                onClick={() => onClose()} 
+                className="px-6 py-2 bg-muted text-muted-foreground hover:bg-muted/80 rounded-full text-sm font-medium transition-colors"
+                >
+                {t('settings.close')}
+              </button>
         </div>
       </div>
     </div>,

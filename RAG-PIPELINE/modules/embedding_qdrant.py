@@ -81,9 +81,9 @@ class QdrantManager:
             try: meta = json.loads(path.read_text(encoding="utf-8"))
             except: pass
         return {
-            "book_name": meta.get("book_name") or meta.get("BOOK_NAME") or meta.get("Title") or book_name,
+            "book_name": meta.get("book_name") or meta.get("BOOK_NAME") or meta.get("BOOK NAME") or meta.get("Title") or book_name,
             "author": meta.get("author") or meta.get("AUTHOR") or "Unknown",
-            "publish_year": meta.get("publish_year") or meta.get("PUBLISH_YEAR") or "Unknown",
+            "publish_year": meta.get("publish_year") or meta.get("PUBLISH_YEAR") or meta.get("PUBLISH YEAR") or "Unknown",
             "keywords": meta.get("keywords") or meta.get("KEYWORDS") or [],
             "language": meta.get("language") or meta.get("LANGUAGE") or "Unknown",
             "pdf_id": meta.get("pdf_id", "unknown")
@@ -135,27 +135,13 @@ class QdrantManager:
         book_meta = self.load_metadata(book_name)
         pdf_id = book_meta.get("pdf_id")
 
-        if pdf_id and pdf_id != "unknown":
-            try:
-                count_res = self.qdrant_client.count(
-                    collection_name=Config.COLLECTION_NAME,
-                    count_filter=models.Filter(must=[models.FieldCondition(key="pdf_id", match=models.MatchValue(value=pdf_id))])
-                )
-                if count_res.count > 0:
-                    if overwrite:
-                        print(f"[INFO] Overwriting {book_name} (PDF ID: {pdf_id}). Deleting {count_res.count} existing points...")
-                        self.qdrant_client.delete(
-                            collection_name=Config.COLLECTION_NAME,
-                            points_selector=models.FilterSelector(
-                                filter=models.Filter(must=[models.FieldCondition(key="pdf_id", match=models.MatchValue(value=pdf_id))])
-                            )
-                        )
-                        print("[SUCCESS] Deleted existing points.")
-                    else:
-                        print(f"[WARN] {book_name} already exists in Qdrant ({count_res.count} points). Skipping (overwrite=False).")
-                        return
-            except Exception as e:
-                print(f"[WARN] Failed to check/delete existing points for {book_name}: {e}")
+        # Phase 1 (`run_splitter`) handles checking and clearing existing data for the PDF ID.
+        # We should NOT check here again, because:
+        # 1. It's redundant if Phase 1 ran.
+        # 2. If processing multiple split files for the same Book, the first file adds points.
+        #    Subsequent files would see those points, think the book "exists", and either skip or delete (wiping previous work).
+        # Therefore, Phase 3 just blindly upserts.
+
 
         print(f"[INFO] Indexing {len(chunks)} chunks for {book_name}...")
         
