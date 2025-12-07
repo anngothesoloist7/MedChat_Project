@@ -82,6 +82,7 @@ def process_pdf(pdf_file: Path, phases: dict):
         if missing_chunks:
             msg = f"Missing chunks for {len(missing_chunks)} files. Cannot proceed to Embedding."
             print(f"[ERROR] {msg}")
+            print(f"[ERROR] Missing files: {missing_chunks}")
             pipeline_logger.log_phase("Embedding", "SKIPPED", msg)
         else:
             pipeline_logger.log_phase("Embedding", "STARTED")

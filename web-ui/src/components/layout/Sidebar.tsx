@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { MessageSquare, Settings, HelpCircle, History, Menu, Gem, Sparkles, MoreVertical, Trash2, Edit2, Check, X, Loader2, FileText, Plus as PlusIcon } from 'lucide-react';
+import { MessageSquare, Settings, HelpCircle, History, Menu, Database, Sparkles, MoreVertical, Trash2, Edit2, Check, X, Loader2, FileText, Plus as PlusIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { createPortal } from 'react-dom';
 import { Button } from "@/components/ui/button";
@@ -357,7 +357,7 @@ export function Sidebar({ isOpen, onToggle, activeTab, onTabChange, onLoadSessio
                  "flex items-center justify-center transition-colors",
                  activeTab === 'ehr' ? "text-emerald-600 dark:text-emerald-400" : "text-emerald-600 dark:text-emerald-500 opacity-80 group-hover:opacity-100" 
               )}>
-                 <Gem size={18} />
+                 <Database size={18} />
               </div>
               {isOpen && (
                  <span className="font-medium truncate">{t('sidebar.knowledgeBase')}</span>
@@ -367,7 +367,7 @@ export function Sidebar({ isOpen, onToggle, activeTab, onTabChange, onLoadSessio
 
         {/* SCROLLABLE CONTENT */}
         <div 
-          className={clsx("flex-1 overflow-y-auto custom-scrollbar", isOpen ? "px-4" : "px-2")}
+          className={clsx("flex-1 overflow-y-auto", isOpen ? "px-4" : "px-2")}
           onScroll={handleScroll}
         >
           {/* Gems Section Title - Only if needed, but since we pulled button out, maybe we don't need this label anymore? 

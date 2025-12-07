@@ -282,12 +282,12 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
                             <span className="text-sm font-medium truncate text-foreground/90">{filename}</span>
                          </div>
                          <div className="space-y-6 relative pl-3">
-                            {/* Background Line - Connects all nodes */}
-                            <div className="absolute left-[22px] top-[10px] bottom-[10px] w-[2px] bg-[#3ECF8E]/20" />
+                            {/* Background Line - Connects all nodes through centers */}
+                            <div className="absolute left-[21px] top-[10px] bottom-[23px] w-[2px] bg-[#3ECF8E]/30 z-0" />
                             
                             {/* Active Progress Line */}
                             <motion.div 
-                                className="absolute left-[22px] top-[10px] w-[2px] bg-[#3ECF8E] origin-top"
+                                className="absolute left-[21px] top-[10px] bottom-[23px] w-[2px] bg-[#3ECF8E] origin-top z-0"
                                 initial={{ height: 0 }}
                                 animate={{ 
                                     height: (logs?.step || 1) === 1 ? "0%" : (logs?.step || 1) === 2 ? "50%" : "100%"

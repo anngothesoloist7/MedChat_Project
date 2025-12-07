@@ -56,6 +56,14 @@ def download_file(url: str, output_dir: str = "downloads") -> str:
                  msg_match = re.search(r'id=([a-zA-Z0-9_-]+)', url)
                  if msg_match: file_id = msg_match.group(1)
             
+            # Check if we have an existing file with this ID tag
+            short_id = file_id[:8] if file_id else None
+            if short_id:
+                for existing in os.listdir(output_dir):
+                    if existing.endswith(f"_{short_id}.pdf") or existing == f"gdown_temp_{file_id}.pdf":
+                        print(f"[INFO] Found existing file for ID {short_id}: {existing}. Skipping download.")
+                        return os.path.abspath(os.path.join(output_dir, existing))
+
             temp_name = f"gdown_temp_{file_id if file_id else hashlib.md5(url.encode()).hexdigest()}.pdf"
             temp_path = os.path.join(output_dir, temp_name)
             
@@ -73,19 +81,25 @@ def download_file(url: str, output_dir: str = "downloads") -> str:
                 if reader.metadata and reader.metadata.title:
                     clean_title = clean_filename(reader.metadata.title)
                     if clean_title and len(clean_title) > 5: # Basic validity check
-                        if not clean_title.lower().endswith(".pdf"): clean_title += ".pdf"
+                        base, ext = os.path.splitext(clean_title)
+                        if not ext: ext = ".pdf"
                         
+                        # ALWAYS append ID to ensure uniqueness and traceability
+                        if short_id:
+                            clean_title = f"{base}_{short_id}{ext}"
+                        else:
+                            clean_title = f"{base}{ext}"
+                            
                         new_path = os.path.join(output_dir, clean_title)
                         if new_path != downloaded_path:
-                            # Handle collision
+                            # Handle collision just in case, though ID should prevent it mostly
                             if os.path.exists(new_path):
-                                 base, ext = os.path.splitext(clean_title)
-                                 clean_title = f"{base}_{file_id[:8]}{ext}"
-                                 new_path = os.path.join(output_dir, clean_title)
-                            
-                            os.rename(downloaded_path, new_path)
-                            print(f"[INFO] Renamed (Metadata) {temp_name} -> {clean_title}")
-                            downloaded_path = new_path
+                                 # If it exists (and we didn't catch it above), it's weird, but okay
+                                 pass 
+                            else:
+                                os.rename(downloaded_path, new_path)
+                                print(f"[INFO] Renamed (Metadata) {temp_name} -> {clean_title}")
+                                downloaded_path = new_path
                             renamed = True
             except Exception as e:
                 print(f"[WARN] Failed to rename based on metadata: {e}")
@@ -96,26 +110,26 @@ def download_file(url: str, output_dir: str = "downloads") -> str:
                     print(f"[INFO] Fetching Drive page title for {url}...")
                     page_resp = requests.get(url, timeout=10)
                     if page_resp.status_code == 200:
-                        # Regex for <title>Filename - Google Drive</title>
-                        # content="Basic Clinical Pharmacology, 14th Edition (Bertram G. Katzung) (z-lib.org).pdf - Google Drive"
-                        # or <title>...
                         title_match = re.search(r'<title>(.*?) - Google Drive</title>', page_resp.text)
                         if title_match:
                             raw_name = title_match.group(1)
                             clean_name = clean_filename(raw_name)
                             if clean_name:
-                                if not clean_name.lower().endswith(".pdf"): clean_name += ".pdf"
+                                base, ext = os.path.splitext(clean_name)
+                                if not ext: ext = ".pdf"
+                                
+                                # ALWAYS append ID
+                                if short_id:
+                                    clean_name = f"{base}_{short_id}{ext}"
+                                else:
+                                    clean_name = f"{base}{ext}"
+
                                 new_path = os.path.join(output_dir, clean_name)
-                                
-                                # Handle collision
-                                if os.path.exists(new_path):
-                                     base, ext = os.path.splitext(clean_name)
-                                     clean_name = f"{base}_{file_id[:8]}{ext}"
-                                     new_path = os.path.join(output_dir, clean_name)
-                                
-                                os.rename(downloaded_path, new_path)
-                                print(f"[INFO] Renamed (Page Title) {temp_name} -> {clean_name}")
-                                downloaded_path = new_path
+                                if new_path != downloaded_path:
+                                     if not os.path.exists(new_path):
+                                        os.rename(downloaded_path, new_path)
+                                        print(f"[INFO] Renamed (Page Title) {temp_name} -> {clean_name}")
+                                        downloaded_path = new_path
                 except Exception as ex:
                     print(f"[WARN] Failed to rename based on Drive page: {ex}")
             

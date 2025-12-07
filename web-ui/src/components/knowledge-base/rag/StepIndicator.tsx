@@ -13,7 +13,7 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({ step, currentStep,
     const isDone = currentStep > step;
     
     return (
-        <div className="relative flex items-center gap-4">
+        <div className="relative flex items-center gap-4 z-10">
             {isActive && (
                 <motion.div
                     layoutId="active-step-glow"

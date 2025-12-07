@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { MessageBubble, Message } from '@/components/chat/MessageBubble';
 import { InputArea, InputAreaRef } from '@/components/chat/InputArea';
-import { Menu, Sparkles } from 'lucide-react'; 
+import { Menu, Sparkles, User } from 'lucide-react'; 
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { clsx } from 'clsx';
@@ -317,9 +317,9 @@ export default function Home() {
               </div>
 
               <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-red-500 p-[2px]">
-                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" className="rounded-full w-full h-full bg-background object-cover" alt="User" />
-                 </div>
+                  <div className="w-10 h-10 rounded-full bg-[#3ECF8E]/10 flex items-center justify-center border border-[#3ECF8E]/20 shadow-sm">
+                    <User className="w-5 h-5 text-[#3ECF8E]" />
+                  </div>
               </div>
               
               {isSessionLoading && (

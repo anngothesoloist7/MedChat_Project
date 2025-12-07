@@ -34,7 +34,9 @@ rate_tracker = RateLimitTracker()
 
 def get_mistral_client():
     if not Config.MISTRAL_API_KEY:
-        print("[ERROR] MISTRAL_API_KEY missing")
+        msg = "MISTRAL_API_KEY missing in .env"
+        print(f"[ERROR] {msg}")
+        pipeline_logger.log_phase("OCR", "ERROR", msg)
         return None
     return Mistral(api_key=Config.MISTRAL_API_KEY)
 
