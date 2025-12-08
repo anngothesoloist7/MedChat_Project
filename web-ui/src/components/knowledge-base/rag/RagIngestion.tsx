@@ -282,24 +282,11 @@ export const RagIngestion: React.FC<RagIngestionProps> = ({ onComplete }) => {
                             <span className="text-sm font-medium truncate text-foreground/90">{filename}</span>
                          </div>
                          <div className="space-y-6 relative pl-3">
-                            {/* Background Line - Connects all nodes through centers */}
-                            <div className="absolute left-[21px] top-[10px] bottom-[23px] w-[2px] bg-[#3ECF8E]/30 z-0" />
+                            {/* Lines are now handled internally by StepIndicator */}
                             
-                            {/* Active Progress Line */}
-                            <motion.div 
-                                className="absolute left-[21px] top-[10px] bottom-[23px] w-[2px] bg-[#3ECF8E] origin-top z-0"
-                                initial={{ height: 0 }}
-                                animate={{ 
-                                    height: (logs?.step || 1) === 1 ? "0%" : (logs?.step || 1) === 2 ? "50%" : "100%"
-                                }}
-                                transition={{ duration: 0.5, ease: "easeInOut" }}
-                            >
-                                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-white/50 to-transparent animate-shimmer" style={{ backgroundSize: '100% 200%' }} />
-                            </motion.div>
-
                             <StepIndicator step={1} currentStep={logs?.step || 1} label={t('rag.step_1')} />
                             <StepIndicator step={2} currentStep={logs?.step || 1} label={t('rag.step_2')} />
-                            <StepIndicator step={3} currentStep={logs?.step || 1} label={t('rag.step_3')} />
+                            <StepIndicator step={3} currentStep={logs?.step || 1} label={t('rag.step_3')} isLast={true} />
                          </div>
                          <div className="mt-8 p-3 bg-secondary/30 rounded-lg border border-border/30 h-10 flex items-center overflow-hidden">
                             <p className="text-xs font-mono text-muted-foreground/80 truncate w-full">
