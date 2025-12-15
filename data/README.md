@@ -2,7 +2,7 @@
 
 # Medical Dataset
 
-Our data includes collection of medical books that provides abundant content in medical education and practice. Below are short descriptions and suggested metadata for the a total of 14 medical books. For full materials, please visit our [folder](https://drive.google.com/drive/folders/1DkbN8xm33Tx9yee4bO6IrpB8bPxiPwCz?usp=sharing) 
+Our data includes collection of medical books that provides abundant content in medical education and practice. Below are short descriptions and suggested metadata for the a total of 14 medical books. For full materials, please visit our [folder](https://drive.google.com/drive/folders/1pwoKse-aQn-IiaeEjMN64_IbW4uNQ8x4?usp=drive_link) 
 </div>
 
 &nbsp;
