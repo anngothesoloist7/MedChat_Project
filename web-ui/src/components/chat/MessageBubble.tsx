@@ -225,7 +225,7 @@ export function MessageBubble({
              >
                 <Sparkles size={16} className={clsx("text-blue-400 fill-blue-400/20 transition-all duration-300", isThoughtOpen ? "scale-110" : "scale-100")} />
                 <span className="font-medium bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                  {t("thought_for") || "Thought for"} {thought.duration ? `${thought.duration}s` : "..."}
+                  {(t("thought_for") || "Thought for").replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} {thought.duration ? `${thought.duration}s` : "..."}
                 </span>
              </button>
              
@@ -248,7 +248,7 @@ export function MessageBubble({
             <div className="flex items-center gap-2 mb-2 text-muted-foreground text-sm pl-0">
                 <Sparkles size={16} className="text-blue-400 fill-blue-400/20" />
                 <span>
-                    {t("thought_for") || "Thought for"} {message.thinkingTime}s
+                    {(t("thought_for") || "Thought for").replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} {message.thinkingTime?.toFixed(2)}s
                 </span>
             </div>
         )}

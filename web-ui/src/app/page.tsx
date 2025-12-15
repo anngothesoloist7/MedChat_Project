@@ -162,7 +162,7 @@ export default function Home() {
     
     try {
       // Unified table
-      const { data, error } = await supabase.from('chat_history').select('*').eq('session_id', id).order('created_at', { ascending: true });
+      const { data, error } = await supabase.from('chat_history').select('*').eq('session_id', id).contains('metadata', { type: 'chat' }).order('created_at', { ascending: true });
 
       if (error) throw error;
 
